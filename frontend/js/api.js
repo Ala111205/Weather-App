@@ -1,0 +1,50 @@
+const BASE = 'http://localhost:4000'; // assume same origin; adjust to http://localhost:4000 if dev separate
+
+async function fetchJSON(url, retries=2) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      // rate-limit handling
+      if (res.status === 429) throw new Error('Rate limit exceeded');
+      throw new Error(`API error ${res.status}`);
+    }
+    return await res.json();
+  } catch (err) {
+    if (retries>0) {
+      await new Promise(r=>setTimeout(r, 500*(3-retries)));
+      return fetchJSON(url, retries-1);
+    }
+    throw err;
+  }
+}
+
+export async function getCurrentByCity(city, units='metric') {
+  const url = `${BASE}/api/weather/current?q=${encodeURIComponent(city)}&units=${units}`;
+  return fetchJSON(url);
+}
+
+export async function getCurrentByCoords(lat, lon, units='metric') {
+  const url = `${BASE}/api/weather/current?lat=${lat}&lon=${lon}&units=${units}`;
+  return fetchJSON(url);
+}
+
+export async function getForecast(qOrLat, lon=null, units='metric') {
+  const url = lon===null ? `${BASE}/api/weather/forecast?q=${encodeURIComponent(qOrLat)}&units=${units}`
+                        : `${BASE}/api/weather/forecast?lat=${qOrLat}&lon=${lon}&units=${units}`;
+  return fetchJSON(url);
+}
+
+export async function getAir(lat, lon) {
+  const url = `${BASE}/api/weather/air?lat=${lat}&lon=${lon}`;
+  return fetchJSON(url);
+}
+
+export async function reverseGeocode(lat, lon) {
+  const url = `${BASE}/api/weather/reverse?lat=${lat}&lon=${lon}`;
+  return fetchJSON(url);
+}
+
+export async function subscribePush(subscription) {
+  const res = await fetch('/api/push/subscribe', { method:'POST', body: JSON.stringify(subscription), headers:{'Content-Type':'application/json'}});
+  return res.json();
+}
