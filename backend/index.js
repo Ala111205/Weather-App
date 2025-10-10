@@ -3,9 +3,9 @@ const express = require('express');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const bodyParser = require('body-parser');
+const cors = require('cors');
 const weatherRoutes = require('./routes/weather');
 const pushRoutes = require('./routes/push');
-const cors = require('cors');
 
 const app = express();
 const allowedOrigins = [
