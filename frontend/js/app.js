@@ -146,20 +146,38 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
 }
 
-// Ask user for notification permission and subscribe
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js')
+  .then(() => console.log('SW registered'))
+  .catch(err => console.error('SW registration failed:', err));
+}
+
 if ('Notification' in window && 'serviceWorker' in navigator) {
-  Notification.requestPermission().then(permission => {
+  navigator.serviceWorker.ready.then(async (reg) => {
+    const existing = await reg.pushManager.getSubscription();
+    if (existing) {
+      console.log('✅ Already subscribed, skipping');
+      return;
+    }
+    const permission = await Notification.requestPermission();
     if (permission === 'granted') {
-      subscribe().then(() => console.log('Push subscription successful'));
+      await subscribe();
+      console.log('🔔 Push subscription successful');
     } else {
-      console.log('Push permission denied');
+      console.log('🚫 Push permission denied');
     }
   });
 }
 
 async function subscribe() {
-  if (!('serviceWorker' in navigator)) return;
   const reg = await navigator.serviceWorker.ready;
+
+  const existingSub = await reg.pushManager.getSubscription();
+  if (existingSub) {
+    console.log('🔹 Already subscribed');
+    return;
+  }
+
   const sub = await reg.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: urlBase64ToUint8Array('BCkItBSMU1gfKoiNDaKLZj9xvKGPFyYn9dqZ29_wNunc4_z-ITd9xhvxXU8fXTN0JQbb8b2YujBCCPi2M05m9co')

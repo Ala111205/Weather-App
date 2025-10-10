@@ -1,4 +1,4 @@
-const BASE_URL = 'https://weather-app-lsaz.onrender.com'; // assume same origin; adjust to http://localhost:4000 if dev separate
+const BASE_URL = 'https://weather-app-lsaz.onrender.com';
 
 async function fetchJSON(url, retries=2) {
   try {
@@ -56,7 +56,6 @@ export async function pushCityWeather(cityData) {
     })
   });
 }
-
 
 export async function subscribePush(subscription) {
   const res = await fetch(`${BASE_URL}/api/push/subscribe`, { method:'POST', body: JSON.stringify(subscription), headers:{'Content-Type':'application/json'}});

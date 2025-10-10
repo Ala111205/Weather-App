@@ -13,15 +13,23 @@ webpush.setVapidDetails('mailto:sadham070403.com', publicVapid, privateVapid);
 router.post('/subscribe', async (req, res) => {
   try {
     const { endpoint, keys } = req.body;
-    // store only if not exists
-    const exists = await Subscription.findOne({ endpoint });
-    if (!exists) await Subscription.create({ endpoint, keys });
-    res.status(201).json({});
+    if (!endpoint || !keys) return res.status(400).json({ message: 'Invalid subscription' });
+
+    const existing = await Subscription.findOne({ endpoint });
+    if (existing) {
+      console.log('🔹 Subscription already exists');
+      return res.status(200).json({ message: 'Already subscribed' });
+    }
+
+    await Subscription.create({ endpoint, keys });
+    console.log('✅ New subscription added');
+    res.status(201).json({ message: 'Subscribed successfully' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Subscription failed' });
   }
 });
+
 
 // notify specific city (optional)
 router.post('/notify-city', async (req, res) => {
