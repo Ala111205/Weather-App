@@ -22,10 +22,13 @@ async function performSearch(term) {
     let coords = parseLatLonInput(term);
     let current = coords ? await API.getCurrentByCoords(coords.lat, coords.lon, isCelsius?'metric':'imperial')
                          : await API.getCurrentByCity(term, isCelsius?'metric':'imperial');
+
     UI.renderCurrent(current, isCelsius);
+
     const lat = current.coord.lat, lon = current.coord.lon;
     showLocation(lat, lon, `${current.name}`);
     const forecast = await API.getForecast(coords? coords.lat : term, coords? coords.lon : null, isCelsius?'metric':'imperial');
+
     // pick every 3 hours or daily summary; here we pass first 8 points
     UI.renderForecastList(forecast.list.slice(0,8), isCelsius);
     const labels = forecast.list.slice(0,8).map(l => new Date(l.dt*1000).toLocaleTimeString());
@@ -38,6 +41,10 @@ async function performSearch(term) {
     recent = [current.name, ...recent.filter(r=>r!==current.name)].slice(0,3);
     localStorage.setItem('recentCities', JSON.stringify(recent));
     UI.updateRecentSearches(recent);
+
+    // Push notification for this city
+    pushCityWeather(current);
+
     showToast('Updated');
   } catch (err) {
     console.error(err);
@@ -84,7 +91,7 @@ themeToggle.addEventListener('click', ()=> {
   themeToggle.textContent = app.classList.contains('dark') ? 'Light' : 'Dark';
 });
 
-// 🌍 Compare Cities Feature
+// Compare Cities Feature
 async function addCityToCompare(city) {
   try {
     const current = await API.getCurrentByCity(city, isCelsius ? 'metric' : 'imperial');
@@ -129,11 +136,17 @@ async function addCityToCompare(city) {
   }
 }
 
-// boot
 initMap();
 UI.updateRecentSearches(recent);
 
-// push subscribe (optional)
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
+}
+
+
 async function subscribe() {
   if (!('serviceWorker' in navigator)) return;
   const reg = await navigator.serviceWorker.ready;

@@ -1,4 +1,4 @@
-const BASE_URL = 'https://weather-app-f9d1.onrender.com'; // assume same origin; adjust to http://localhost:4000 if dev separate
+const BASE_URL = 'https://weather-app-lsaz.onrender.com'; // assume same origin; adjust to http://localhost:4000 if dev separate
 
 async function fetchJSON(url, retries=2) {
   try {
@@ -44,7 +44,21 @@ export async function reverseGeocode(lat, lon) {
   return fetchJSON(url);
 }
 
+export async function pushCityWeather(cityData) {
+  const { name, main, weather } = cityData; // current city info
+  await fetch(`${BASE_URL}/api/push/notify-city`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      city: name,
+      temp: main.temp,
+      description: weather[0].description
+    })
+  });
+}
+
+
 export async function subscribePush(subscription) {
-  const res = await fetch('/api/push/subscribe', { method:'POST', body: JSON.stringify(subscription), headers:{'Content-Type':'application/json'}});
+  const res = await fetch(`${BASE_URL}/api/push/subscribe`, { method:'POST', body: JSON.stringify(subscription), headers:{'Content-Type':'application/json'}});
   return res.json();
 }
