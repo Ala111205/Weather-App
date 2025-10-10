@@ -3,48 +3,68 @@ const STATIC_ASSETS = [
   '/', '/index.html', '/css/style.css', '/js/app.js', '/manifest.json'
 ];
 
+// Install event — cache static assets
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(STATIC_ASSETS)));
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS))
+  );
   self.skipWaiting();
 });
 
+// Activate event — claim clients
 self.addEventListener('activate', event => {
   event.waitUntil(self.clients.claim());
 });
 
-// Only handle GET requests — ignore POST, PUT, DELETE, etc.
-if (request.method !== 'GET') return;
-
+// Fetch event — cache strategy
 self.addEventListener('fetch', event => {
-  const url = new URL(event.request.url);
-  // network-first for API requests to backend
+  const request = event.request;
+  const url = new URL(request.url);
 
-  // Only handle GET requests — ignore POST, PUT, DELETE, etc.
+  // Only handle GET requests
   if (request.method !== 'GET') return;
 
+  // Network-first for API requests
   if (url.pathname.startsWith('/api/')) {
-    event.respondWith(networkFirst(event.request));
+    event.respondWith(networkFirst(request));
     return;
   }
-  // cache-first for static assets
-  event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request)));
+
+  // Cache-first for static assets
+  event.respondWith(
+    caches.match(request).then(cached => cached || fetch(request))
+  );
 });
 
+// Network-first function for APIs
 async function networkFirst(req) {
   const cache = await caches.open(CACHE_NAME);
   try {
     const resp = await fetch(req);
-    if (resp && resp.ok) cache.put(req, resp.clone());
+    // Only cache GET responses
+    if (req.method === 'GET' && resp && resp.ok) {
+      cache.put(req, resp.clone());
+    }
     return resp;
   } catch (err) {
     const cached = await cache.match(req);
-    return cached || new Response(JSON.stringify({error:'offline'}), {status:503, headers:{'Content-Type':'application/json'}});
+    return cached || new Response(JSON.stringify({ error: 'offline' }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
 
-// listen for push
-self.addEventListener('push', e => {
-  let payload = { title:'Weather Update', body:'Click to open app' };
-  try { payload = e.data.json(); } catch (err){}
-  self.registration.showNotification(payload.title, { body: payload.body, icon: '/assets/icons/icon-192.png' });
+// Push notifications listener
+self.addEventListener('push', event => {
+  let payload = { title: 'Weather Update', body: 'Click to open app' };
+  try {
+    payload = event.data.json();
+  } catch (err) {
+    // fallback payload is fine
+  }
+  self.registration.showNotification(payload.title, {
+    body: payload.body,
+    icon: '/assets/icons/icon-192.png'
+  });
 });
