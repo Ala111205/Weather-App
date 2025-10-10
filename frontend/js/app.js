@@ -146,6 +146,16 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
 }
 
+// Ask user for notification permission and subscribe
+if ('Notification' in window && 'serviceWorker' in navigator) {
+  Notification.requestPermission().then(permission => {
+    if (permission === 'granted') {
+      subscribe().then(() => console.log('Push subscription successful'));
+    } else {
+      console.log('Push permission denied');
+    }
+  });
+}
 
 async function subscribe() {
   if (!('serviceWorker' in navigator)) return;
