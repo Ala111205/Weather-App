@@ -1,7 +1,7 @@
 // routes/push.js
 const express = require('express');
 const webpush = require('web-push');
-const Subscription = require('../models/Subscription');
+const Subscription = require('../model/subscription');
 const router = express.Router();
 
 const publicVapid = process.env.VAPID_PUBLIC_KEY;
