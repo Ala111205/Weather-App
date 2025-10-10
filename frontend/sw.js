@@ -12,9 +12,16 @@ self.addEventListener('activate', event => {
   event.waitUntil(self.clients.claim());
 });
 
+// Only handle GET requests — ignore POST, PUT, DELETE, etc.
+if (request.method !== 'GET') return;
+
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   // network-first for API requests to backend
+
+  // Only handle GET requests — ignore POST, PUT, DELETE, etc.
+  if (request.method !== 'GET') return;
+
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(networkFirst(event.request));
     return;
