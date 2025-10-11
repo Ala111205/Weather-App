@@ -36,14 +36,33 @@ router.post('/notify-city', async (req, res) => {
   const { city, temp, description } = req.body;
   const payload = JSON.stringify({
     title: `Weather in ${city}`,
-    body: `${description}, ${temp}°`
+    body: `${description}, ${temp}°`,
+    icon: '/assets/icons/icon-192.png'
   });
 
   try {
     const subs = await Subscription.find();
     const results = [];
 
+    // Create a Map to store unique endpoints and update keys if needed
+    const uniqueSubs = new Map();
+
     for (const s of subs) {
+      // If the endpoint already exists in the map, skip duplicates
+      if (!uniqueSubs.has(s.endpoint)) {
+        uniqueSubs.set(s.endpoint, s);
+      } else {
+        // Optional: update keys if changed
+        const existing = uniqueSubs.get(s.endpoint);
+        if (s.keys.p256dh !== existing.keys.p256dh || s.keys.auth !== existing.keys.auth) {
+          await Subscription.updateOne({ endpoint: s.endpoint }, { keys: s.keys });
+          console.log(`🔄 Updated keys for ${s.endpoint}`);
+        }
+      }
+    }
+
+    // Send notifications to unique subscriptions only
+    for (const [endpoint, s] of uniqueSubs) {
       try {
         await webpush.sendNotification(s, payload);
         results.push({ endpoint: s.endpoint, status: 'sent' });

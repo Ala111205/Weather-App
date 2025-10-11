@@ -57,7 +57,7 @@ async function networkFirst(req) {
 
 // Push notifications listener
 self.addEventListener('push', event => {
-  let payload = { title: 'Weather Update', body: 'Click to open app' };
+  let payload = { title: 'Weather Update', body: 'Click to open app', icon:'/assets/icons/icon-192.png' };
   try {
     payload = event.data.json();
   } catch (err) {
@@ -65,6 +65,6 @@ self.addEventListener('push', event => {
   }
   self.registration.showNotification(payload.title, {
     body: payload.body,
-    icon: '/assets/icons/icon-192.png'
+    icon: payload.icon
   });
 });
