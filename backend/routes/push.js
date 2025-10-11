@@ -31,20 +31,36 @@ router.post('/subscribe', async (req, res) => {
 });
 
 
-// notify specific city (optional)
+// notify specific city 
 router.post('/notify-city', async (req, res) => {
-  const { endpoint, city, temp, description } = req.body;
-  const payload = JSON.stringify({ title: `Weather in ${city}`, body: `${description}, ${temp}°` });
+  const { city, temp, description } = req.body;
+  const payload = JSON.stringify({
+    title: `Weather in ${city}`,
+    body: `${description}, ${temp}°`
+  });
 
   try {
-    const subs = await Subscription.findOne({endpoint});
-    const results = await Promise.all(
-      subs.map(s => webpush.sendNotification(s, payload).catch(e => e))
-    );
-    res.json({ results });
+    const subs = await Subscription.find();
+    const results = [];
+
+    for (const s of subs) {
+      try {
+        await webpush.sendNotification(s, payload);
+        results.push({ endpoint: s.endpoint, status: 'sent' });
+      } catch (err) {
+        console.error('Push send error:', err.statusCode);
+        if (err.statusCode === 404 || err.statusCode === 410) {
+          await Subscription.deleteOne({ endpoint: s.endpoint });
+          console.log('🗑️ Deleted expired subscription');
+        }
+        results.push({ endpoint: s.endpoint, status: 'failed' });
+      }
+    }
+
+    res.json({ ok: true, results });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Push failed' });
+    console.error('Push failed:', err);
+    res.status(500).json({ message: 'Internal server error' });
   }
 });
 

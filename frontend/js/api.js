@@ -45,18 +45,22 @@ export async function reverseGeocode(lat, lon) {
 }
 
 export async function pushCityWeather(cityData) {
-  const { name, main, weather } = cityData; // current city info
-  await fetch(`${BASE_URL}/api/push/notify-city`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      endpoint: sub?.endpoint, // identify the current device
-      city: name,
-      temp: main.temp,
-      description: weather[0].description
-    })
-  });
+  try {
+    const { name, main, weather } = cityData;
+    await fetch(`${BASE_URL}/api/push/notify-city`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        city: name,
+        temp: main.temp,
+        description: weather[0].description
+      })
+    });
+  } catch (err) {
+    console.error('Push failed:', err);
+  }
 }
+
 
 export async function subscribePush(subscription) {
   const res = await fetch(`${BASE_URL}/api/push/subscribe`, { method:'POST', body: JSON.stringify(subscription), headers:{'Content-Type':'application/json'}});
