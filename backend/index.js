@@ -28,18 +28,11 @@ app.use(cors({
   credentials: true
 }));
 
-// also handle preflight requests globally
-app.options('*', cors({
-  origin: allowedOrigins,
-  methods: ["GET","POST","OPTIONS"],
-  credentials: true
-}));
-
 app.use(helmet());
 app.use(bodyParser.json());
 
 mongoose.connect(process.env.MONGO_URI)
-.then(() => console.log('MongoDB connected'))
+.then(() => console.log('MongoDB connected...'))
 .catch(err => console.error('MongoDB connection error:', err));
 
 
