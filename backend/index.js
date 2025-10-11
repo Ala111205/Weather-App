@@ -24,7 +24,14 @@ app.use(cors({
     }
     return callback(new Error("Not allowed by CORS"));
   },
-  methods: ["GET","POST"],
+  methods: ["GET","POST","OPTIONS"],
+  credentials: true
+}));
+
+// also handle preflight requests globally
+app.options('*', cors({
+  origin: allowedOrigins,
+  methods: ["GET","POST","OPTIONS"],
   credentials: true
 }));
 
