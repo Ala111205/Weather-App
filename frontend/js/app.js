@@ -146,41 +146,41 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
 }
 
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js')
-  .then(() => console.log('SW registered'))
-  .catch(err => console.error('SW registration failed:', err));
-}
+if ('serviceWorker' in navigator && 'PushManager' in window) {
+  (async () => {
+    try {
+      // Register SW
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      console.log('✅ SW registered');
 
-if ('Notification' in window && 'serviceWorker' in navigator) {
-  navigator.serviceWorker.ready.then(async (reg) => {
-    const existing = await reg.pushManager.getSubscription();
-    if (existing) {
-      console.log('✅ Already subscribed, skipping');
-      return;
+      // Check for existing subscription
+      let subscription = await reg.pushManager.getSubscription();
+
+      if (!subscription) {
+        // Request permission only if not granted yet
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          console.log('🚫 Push permission denied');
+          return;
+        }
+
+        // Subscribe for push
+        subscription = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(
+            'BCkItBSMU1gfKoiNDaKLZj9xvKGPFyYn9dqZ29_wNunc4_z-ITd9xhvxXU8fXTN0JQbb8b2YujBCCPi2M05m9co'
+          )
+        });
+
+        // Send subscription to backend
+        await API.subscribePush(subscription);
+        console.log('🔔 Push subscription successful');
+      } else {
+        console.log('✅ Already subscribed');
+      }
+
+    } catch (err) {
+      console.error('SW / Push setup failed:', err);
     }
-    const permission = await Notification.requestPermission();
-    if (permission === 'granted') {
-      await subscribe();
-      console.log('🔔 Push subscription successful');
-    } else {
-      console.log('🚫 Push permission denied');
-    }
-  });
-}
-
-async function subscribe() {
-  const reg = await navigator.serviceWorker.ready;
-
-  const existingSub = await reg.pushManager.getSubscription();
-  if (existingSub) {
-    console.log('🔹 Already subscribed');
-    return;
-  }
-
-  const sub = await reg.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array('BCkItBSMU1gfKoiNDaKLZj9xvKGPFyYn9dqZ29_wNunc4_z-ITd9xhvxXU8fXTN0JQbb8b2YujBCCPi2M05m9co')
-  });
-  await API.subscribePush(sub);
+  })();
 }

@@ -57,14 +57,17 @@ async function networkFirst(req) {
 
 // Push notifications listener
 self.addEventListener('push', event => {
-  let payload = { title: 'Weather Update', body: 'Click to open app', icon:'/assets/icons/icon-192.png' };
+  let data = { title: 'Weather Update', body: 'Click to open app', icon:'assets/icons/icon-192.png' };
   try {
-    payload = event.data.json();
-  } catch (err) {
-    // fallback payload is fine
-  }
-  self.registration.showNotification(payload.title, {
-    body: payload.body,
-    icon: payload.icon
-  });
+    data = event.data.json().data;
+  } catch (err) {}
+  
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: data.icon,
+      badge: data.icon
+    })
+  );
 });
+
