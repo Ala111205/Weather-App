@@ -55,40 +55,27 @@ async function networkFirst(req) {
 
 // Push notifications listener
 self.addEventListener('push', event => {
-  console.log('💌 Push event received');
+  if (!event.data) return; // ignore empty pushes
 
-  let data = { 
-    title: 'Weather Update', 
-    body: 'Click to open app', 
-    icon: '',
-    badge: ''
-  };
-
+  let data;
   try {
-    const eventData = event.data?.json();
-    data = eventData?.data || eventData || data;
-  } catch (err) {
-    console.warn('⚠️ Push event data missing or invalid');
+    data = event.data.json();
+  } catch {
+    console.warn('⚠️ Push event data malformed');
+    return; // ignore malformed pushes
   }
 
-  if (data._notified) return; // prevent duplicates
-  data._notified = true;
-
-  // Determine base URL dynamically
-  const baseURL = (self.registration.scope.startsWith('http://127.0.0.1') || self.registration.scope.startsWith('http://localhost'))
-    ? 'http://127.0.0.1:5500'
-    : 'https://weather-pwa-blush.vercel.app';
-
-  const iconUrl = data.icon?.startsWith('http') ? data.icon : `${baseURL}/assets/icons/icon-192.png`;
-  const badgeUrl = data.badge?.startsWith('http') ? data.badge : iconUrl;
-
-  console.log('SW push notification:', { title: data.title, body: data.body, iconUrl, badgeUrl });
+  data = event.data?.json() || {};
+  if (!data.title) data.title = 'Weather Update';
+  if (!data.body) data.body = 'Click to open app';
+  if (!data.icon) data.icon = `${self.registration.scope}assets/icons/icon-192.png`;
+  if (!data.badge) data.badge = data.icon;
 
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: iconUrl,
-      badge: badgeUrl
+      icon: data.icon,
+      badge: data.badge
     })
   );
 });

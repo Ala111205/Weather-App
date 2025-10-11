@@ -43,7 +43,7 @@ async function performSearch(term) {
     UI.updateRecentSearches(recent);
 
     // Push notification for this city
-    API.pushCityWeather(current);
+    // API.pushCityWeather(current);
 
     showToast('Updated');
   } catch (err) {
@@ -148,36 +148,29 @@ function urlBase64ToUint8Array(base64String) {
 
 (async () => {
   if ('serviceWorker' in navigator && 'PushManager' in window) {
-    // Unregister old SWs
+    // Unregister old SWs & remove old subscriptions
     const regs = await navigator.serviceWorker.getRegistrations();
-    for (const reg of regs) await reg.unregister();
-    console.log('✅ Old service workers unregistered');
+    for (const reg of regs) {
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) await API.unsubscribePush(sub); // delete old subscription from backend
+      await reg.unregister();
+    }
 
     // Register new SW
     const reg = await navigator.serviceWorker.register('/sw.js');
-    console.log('✅ SW registered at scope:', reg.scope);
+    await navigator.serviceWorker.ready;
 
-    // Wait until controlling the page
-    if (!navigator.serviceWorker.controller) {
-      await navigator.serviceWorker.ready;
-      console.log('✅ SW is now controlling the page');
-    }
-
-    // Push subscription
+    // Subscribe for push
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
         sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(
-            'BCkItBSMU1gfKoiNDaKLZj9xvKGPFyYn9dqZ29_wNunc4_z-ITd9xhvxXU8fXTN0JQbb8b2YujBCCPi2M05m9co'
-          )
+          applicationServerKey: urlBase64ToUint8Array("BCkItBSMU1gfKoiNDaKLZj9xvKGPFyYn9dqZ29_wNunc4_z-ITd9xhvxXU8fXTN0JQbb8b2YujBCCPi2M05m9co")
         });
         await API.subscribePush(sub);
         console.log('🔔 Push subscription successful');
-      } else {
-        console.log('🚫 Push permission denied');
       }
     } else {
       console.log('✅ Already subscribed');

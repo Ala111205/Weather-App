@@ -57,6 +57,8 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB connected...'))
   .catch(err => console.error('MongoDB connection error:', err));
 
+// ✅ Trust proxy (required for Render)
+app.set('trust proxy', 1);
 const limiter = rateLimit({
   windowMs: 60 * 1000,
   max: 60,

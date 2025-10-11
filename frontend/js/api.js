@@ -66,3 +66,21 @@ export async function subscribePush(subscription) {
   const res = await fetch(`${BASE_URL}/api/push/subscribe`, { method:'POST', body: JSON.stringify(subscription), headers:{'Content-Type':'application/json'}});
   return res.json();
 }
+
+export async function unsubscribePush(subscription) {
+  if (!subscription || !subscription.endpoint) return;
+
+  try {
+    const res = await fetch(`${BASE_URL}/api/push/unsubscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endpoint: subscription.endpoint })
+    });
+    const data = await res.json();
+    console.log('Unsubscribe response:', data);
+    return data;
+  } catch (err) {
+    console.error('Failed to unsubscribe:', err);
+  }
+}
+
