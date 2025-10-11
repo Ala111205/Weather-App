@@ -1,4 +1,4 @@
-const CACHE_NAME = 'weather-pwa-v2';
+const CACHE_NAME = 'weather-pwa-v2'; 
 const STATIC_ASSETS = [
   '/', '/index.html', '/css/style.css', '/js/app.js', '/manifest.json'
 ];
@@ -8,12 +8,14 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS))
   );
-  self.skipWaiting();
+  console.log('🛠 SW install event');
+  self.skipWaiting(); // activate immediately
 });
 
 // Activate event — claim clients
 self.addEventListener('activate', event => {
   event.waitUntil(self.clients.claim());
+  console.log('⚡ SW activate event');
 });
 
 // Fetch event — cache strategy
@@ -21,16 +23,13 @@ self.addEventListener('fetch', event => {
   const request = event.request;
   const url = new URL(request.url);
 
-  // Only handle GET requests
   if (request.method !== 'GET') return;
 
-  // Network-first for API requests
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(networkFirst(request));
     return;
   }
 
-  // Cache-first for static assets
   event.respondWith(
     caches.match(request).then(cached => cached || fetch(request))
   );
@@ -41,7 +40,6 @@ async function networkFirst(req) {
   const cache = await caches.open(CACHE_NAME);
   try {
     const resp = await fetch(req);
-    // Only cache GET responses
     if (req.method === 'GET' && resp && resp.ok) {
       cache.put(req, resp.clone());
     }
@@ -57,17 +55,47 @@ async function networkFirst(req) {
 
 // Push notifications listener
 self.addEventListener('push', event => {
-  let data = { title: 'Weather Update', body: 'Click to open app', icon:'assets/icons/icon-192.png' };
+  console.log('💌 Push event received');
+
+  let data = { 
+    title: 'Weather Update', 
+    body: 'Click to open app', 
+    icon: '',
+    badge: ''
+  };
+
   try {
-    data = event.data.json().data;
-  } catch (err) {}
-  
+    const eventData = event.data?.json();
+    data = eventData?.data || eventData || data;
+  } catch (err) {
+    console.warn('⚠️ Push event data missing or invalid');
+  }
+
+  if (data._notified) return; // prevent duplicates
+  data._notified = true;
+
+  // Determine base URL dynamically
+  const baseURL = (self.registration.scope.startsWith('http://127.0.0.1') || self.registration.scope.startsWith('http://localhost'))
+    ? 'http://127.0.0.1:5500'
+    : 'https://weather-pwa-blush.vercel.app';
+
+  const iconUrl = data.icon?.startsWith('http') ? data.icon : `${baseURL}/assets/icons/icon-192.png`;
+  const badgeUrl = data.badge?.startsWith('http') ? data.badge : iconUrl;
+
+  console.log('SW push notification:', { title: data.title, body: data.body, iconUrl, badgeUrl });
+
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: data.icon,
-      badge: data.icon
+      icon: iconUrl,
+      badge: badgeUrl
     })
   );
 });
 
+// Notification click
+self.addEventListener('notificationclick', event => {
+  console.log('🖱 Notification clicked');
+  event.notification.close();
+  event.waitUntil(clients.openWindow('/'));
+});

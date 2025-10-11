@@ -1,15 +1,20 @@
-// routes/push.js
 const express = require('express');
 const webpush = require('web-push');
 const Subscription = require('../model/subscription');
 const router = express.Router();
 
-const publicVapid = process.env.VAPID_PUBLIC_KEY;
-const privateVapid = process.env.VAPID_PRIVATE_KEY;
+webpush.setVapidDetails(
+  'mailto:sadham070403.com', 
+  process.env.VAPID_PUBLIC_KEY, 
+  process.env.VAPID_PRIVATE_KEY
+);
 
-webpush.setVapidDetails('mailto:sadham070403.com', publicVapid, privateVapid);
+const getBaseURL = () => {
+  return process.env.NODE_ENV === 'production'
+    ? process.env.FRONTEND_PROD_URL
+    : process.env.FRONTEND_BASE_URL;
+};
 
-// subscribe route
 router.post('/subscribe', async (req, res) => {
   try {
     const { endpoint, keys } = req.body;
@@ -30,29 +35,31 @@ router.post('/subscribe', async (req, res) => {
   }
 });
 
-
-// notify specific city 
 router.post('/notify-city', async (req, res) => {
   const { city, temp, description } = req.body;
+
+    // Determine frontend base URL dynamically from env
+  const baseURL = getBaseURL();
+
   const payload = JSON.stringify({
-    title: `Weather in ${city}`,
-    body: `${description}, ${temp}°`,
-    icon: `${process.env.FRONTEND_BASE_URL}/assets/icons/icon-192.png`
+    data: {
+      title: `Weather in ${city}`,
+      body: `${description}, ${temp}°`,
+      icon: `${baseURL}/assets/icons/icon-192.png`,
+      badge: `${baseURL}/assets/icons/icon-192.png`
+    }
   });
 
   try {
     const subs = await Subscription.find();
     const results = [];
 
-    // Create a Map to store unique endpoints and update keys if needed
     const uniqueSubs = new Map();
-
     for (const s of subs) {
-      // If the endpoint already exists in the map, skip duplicates
       if (!uniqueSubs.has(s.endpoint)) {
         uniqueSubs.set(s.endpoint, s);
-      } else {
-        // Optional: update keys if changed
+      }
+      else {
         const existing = uniqueSubs.get(s.endpoint);
         if (s.keys.p256dh !== existing.keys.p256dh || s.keys.auth !== existing.keys.auth) {
           await Subscription.updateOne({ endpoint: s.endpoint }, { keys: s.keys });
@@ -61,7 +68,6 @@ router.post('/notify-city', async (req, res) => {
       }
     }
 
-    // Send notifications to unique subscriptions only
     for (const [endpoint, s] of uniqueSubs) {
       try {
         await webpush.sendNotification(s, payload);

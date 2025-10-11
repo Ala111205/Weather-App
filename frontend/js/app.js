@@ -146,41 +146,41 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
 }
 
-if ('serviceWorker' in navigator && 'PushManager' in window) {
-  (async () => {
-    try {
-      // Register SW
-      const reg = await navigator.serviceWorker.register('/sw.js');
-      console.log('✅ SW registered');
+(async () => {
+  if ('serviceWorker' in navigator && 'PushManager' in window) {
+    // Unregister old SWs
+    const regs = await navigator.serviceWorker.getRegistrations();
+    for (const reg of regs) await reg.unregister();
+    console.log('✅ Old service workers unregistered');
 
-      // Check for existing subscription
-      let subscription = await reg.pushManager.getSubscription();
+    // Register new SW
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    console.log('✅ SW registered at scope:', reg.scope);
 
-      if (!subscription) {
-        // Request permission only if not granted yet
-        const permission = await Notification.requestPermission();
-        if (permission !== 'granted') {
-          console.log('🚫 Push permission denied');
-          return;
-        }
+    // Wait until controlling the page
+    if (!navigator.serviceWorker.controller) {
+      await navigator.serviceWorker.ready;
+      console.log('✅ SW is now controlling the page');
+    }
 
-        // Subscribe for push
-        subscription = await reg.pushManager.subscribe({
+    // Push subscription
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(
             'BCkItBSMU1gfKoiNDaKLZj9xvKGPFyYn9dqZ29_wNunc4_z-ITd9xhvxXU8fXTN0JQbb8b2YujBCCPi2M05m9co'
           )
         });
-
-        // Send subscription to backend
-        await API.subscribePush(subscription);
+        await API.subscribePush(sub);
         console.log('🔔 Push subscription successful');
       } else {
-        console.log('✅ Already subscribed');
+        console.log('🚫 Push permission denied');
       }
-
-    } catch (err) {
-      console.error('SW / Push setup failed:', err);
+    } else {
+      console.log('✅ Already subscribed');
     }
-  })();
-}
+  }
+})();
