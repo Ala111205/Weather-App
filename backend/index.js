@@ -17,16 +17,33 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function(origin, callback){
-    // allow requests with no origin (like local file)
-    if(!origin) return callback(null, true);
+    if(!origin) return callback(null, true); // allow non-browser requests
     if(allowedOrigins.includes(origin)){
       return callback(null, true);
     }
     return callback(new Error("Not allowed by CORS"));
   },
-  methods: ["GET","POST","OPTIONS"],
+  methods: ["GET","POST"],
   credentials: true
 }));
+
+// Handle preflight OPTIONS manually for all routes
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    const origin = req.headers.origin;
+    if (allowedOrigins.includes(origin)) {
+      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Content-Type');
+      res.sendStatus(204); // respond immediately
+      return;
+    } else {
+      res.sendStatus(403); // not allowed
+      return;
+    }
+  }
+  next();
+});
 
 app.use(helmet());
 app.use(bodyParser.json());
