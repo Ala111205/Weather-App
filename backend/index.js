@@ -17,6 +17,7 @@ const app = express();
 const allowedOrigins = [
   "http://127.0.0.1:5500",
   "https://weather-pwa-blush.vercel.app",
+  "https://weather-app-two-red-discc085r3.vercel.app"
 ];
 
 // ✅ CORS setup
