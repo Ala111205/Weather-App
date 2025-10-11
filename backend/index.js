@@ -7,6 +7,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const weatherRoutes = require('./routes/weather');
 const pushRoutes = require('./routes/push');
+const Subscription = require('./model/subscription');
 
 const app = express();
 const allowedOrigins = [
