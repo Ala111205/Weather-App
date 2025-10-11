@@ -57,10 +57,12 @@ router.post('/notify-city', async (req, res) => {
   const baseURL = getBaseURL();
 
   const payload = JSON.stringify({
-    title: `Weather in ${city}`,
-    body: `${description}, ${temp}°`,
-    icon: `${baseURL}/assets/icons/icon-192.png`,
-    badge: `${baseURL}/assets/icons/icon-192.png`
+    data: {          
+      title: `Weather in ${city}`,
+      body: `${description}, ${temp}°`,
+      icon: `${baseURL}/assets/icons/icon-192.png`,
+      badge: `${baseURL}/assets/icons/icon-192.png`
+    }
   });
 
   try {

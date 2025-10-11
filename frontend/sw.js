@@ -57,26 +57,22 @@ async function networkFirst(req) {
 self.addEventListener('push', event => {
   if (!event.data) return; // ignore empty pushes
 
-  let data;
+  let payload = {};
   try {
-    data = event.data.json();
+    payload = event.data.json()?.data || {}; // read `data` from backend
   } catch {
-    console.warn('⚠️ Push event data malformed');
-    return; // ignore malformed pushes
+    console.warn('⚠️ Malformed push event data');
+    return;
   }
 
-  data = event.data?.json() || {};
-  if (!data.title) data.title = 'Weather Update';
-  if (!data.body) data.body = 'Click to open app';
-  if (!data.icon) data.icon = `${self.registration.scope}assets/icons/icon-192.png`;
-  if (!data.badge) data.badge = data.icon;
+  // Defaults
+  const title = payload.title || 'Weather Update';
+  const body = payload.body || 'Click to open app';
+  const icon = payload.icon || `${self.registration.scope}assets/icons/icon-192.png`;
+  const badge = payload.badge || icon;
 
   event.waitUntil(
-    self.registration.showNotification(data.title, {
-      body: data.body,
-      icon: data.icon,
-      badge: data.badge
-    })
+    self.registration.showNotification(title, { body, icon, badge })
   );
 });
 

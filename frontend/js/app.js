@@ -43,7 +43,7 @@ async function performSearch(term) {
     UI.updateRecentSearches(recent);
 
     // Push notification for this city
-    // API.pushCityWeather(current);
+    API.pushCityWeather(current);
 
     showToast('Updated');
   } catch (err) {
