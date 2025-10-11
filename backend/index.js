@@ -11,7 +11,7 @@ const pushRoutes = require('./routes/push');
 const app = express();
 const allowedOrigins = [
   "http://127.0.0.1:5500",
-  "https://weather-app-one-rosy-18.vercel.app",
+  "https://weather-pwa-blush.vercel.app",
 ];
 
 app.use(cors({
