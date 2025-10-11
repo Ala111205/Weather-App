@@ -50,6 +50,7 @@ export async function pushCityWeather(cityData) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      endpoint: sub?.endpoint, // identify the current device
       city: name,
       temp: main.temp,
       description: weather[0].description

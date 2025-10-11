@@ -33,11 +33,11 @@ router.post('/subscribe', async (req, res) => {
 
 // notify specific city (optional)
 router.post('/notify-city', async (req, res) => {
-  const { city, temp, description } = req.body;
+  const { endpoint, city, temp, description } = req.body;
   const payload = JSON.stringify({ title: `Weather in ${city}`, body: `${description}, ${temp}°` });
 
   try {
-    const subs = await Subscription.find();
+    const subs = await Subscription.findOne({endpoint});
     const results = await Promise.all(
       subs.map(s => webpush.sendNotification(s, payload).catch(e => e))
     );
