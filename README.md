@@ -1,10 +1,11 @@
-🌦️ Advanced Weather PWA
+**🌦️ Advanced Weather PWA**
 
 A professional-grade Progressive Web App (PWA) delivering real-time weather updates, air quality data, city comparisons, and more — with offline support.
 Built with a modular full-stack architecture, featuring push notifications, service worker caching, hourly background alerts, and a smooth, interactive user interface.
 
-🚀 Features
-🔹 Core Weather Features
+**🚀 Features:-**
+
+**🔹 Core Weather Features**
 
 🌍 Search weather by city name or geolocation coordinates (lat, lon)
 
