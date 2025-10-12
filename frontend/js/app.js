@@ -99,6 +99,13 @@ if (unsubscribeBtn) {
   });
 }
 
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'UNSUBSCRIBE') {
+    self.registration.getNotifications().then(notifications => {
+      notifications.forEach(n => n.close());
+    });
+  }
+});
 
 // Compare Cities Feature
 async function addCityToCompare(city) {
@@ -198,9 +205,21 @@ function urlBase64ToUint8Array(base64String) {
     const reg = await navigator.serviceWorker.ready;
     const sub = await reg.pushManager.getSubscription();
     if (sub) {
-      await sub.unsubscribe();
       await API.unsubscribePush(sub);
-      console.log('🗑️ User unsubscribed');
+
+      // Unsubscribe from browser push
+      const unsubscribed = await sub.unsubscribe();
+      if (unsubscribed) {
+        console.log('🗑️ User manually unsubscribed, notifications stopped');
+        alert('You will no longer receive notifications.');
+
+        if (reg.active) {
+          reg.active.postMessage({ type: 'UNSUBSCRIBE' });
+        }
+      }
+    } else {
+      console.log('⚠️ No active subscription found');
+      alert('You are not subscribed to notifications.');
     }
   };
 })();
