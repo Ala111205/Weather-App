@@ -55,6 +55,7 @@ async function networkFirst(req) {
 
 // Push notifications listener
 self.addEventListener('push', event => {
+  console.log('🔥 Push received at', new Date().toISOString());
   if (!event.data) return; // ignore empty pushes
 
   let payload = {};
@@ -66,14 +67,34 @@ self.addEventListener('push', event => {
   }
 
   // Defaults
+  const id = payload.id || `${(payload.title||'weather')}-${(payload.body||'').slice(0,40)}`;
   const title = payload.title || 'Weather Update';
   const body = payload.body || 'Click to open app';
   const icon = payload.icon || `${self.registration.scope}assets/icons/icon-192.png`;
   const badge = payload.badge || icon;
 
-  event.waitUntil(
-    self.registration.showNotification(title, { body, icon, badge })
-  );
+  console.log('🔥 Push received:', id);
+  
+  // Use the id as tag so duplicate notifications are replaced instead of duplicated
+  const tag = id;
+
+  event.waitUntil((async () => {
+    // Check for existing notifications with same tag
+    const existing = await self.registration.getNotifications({ tag });
+    if (existing && existing.length > 0) {
+      console.log('🚫 Duplicate push ignored:', id);
+      return;
+    }
+
+    // Show notification (tag prevents duplicates / will replace)
+    await self.registration.showNotification(title, {
+      body,
+      icon,
+      badge,
+      tag,
+      renotify: false
+    });
+  })());
 });
 
 // Notification click

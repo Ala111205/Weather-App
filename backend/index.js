@@ -88,7 +88,6 @@ cron.schedule('0 * * * *', async () => {
   console.log('Checking weather for subscribers...');
   try {
     const subs = await Subscription.find();
-    const city = 'Madurai';
     const res = await axios.get(`https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${process.env.OPENWEATHER_API_KEY}`);
     const { temp } = res.data.main;
     const description = res.data.weather[0].description;

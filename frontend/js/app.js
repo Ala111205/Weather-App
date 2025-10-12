@@ -157,23 +157,26 @@ function urlBase64ToUint8Array(base64String) {
     }
 
     // Register new SW
-    const reg = await navigator.serviceWorker.register('/sw.js');
-    await navigator.serviceWorker.ready;
+    if (regs.length === 0) {
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.ready;
 
-    // Subscribe for push
-    let sub = await reg.pushManager.getSubscription();
-    if (!sub) {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array("BCkItBSMU1gfKoiNDaKLZj9xvKGPFyYn9dqZ29_wNunc4_z-ITd9xhvxXU8fXTN0JQbb8b2YujBCCPi2M05m9co")
-        });
-        await API.subscribePush(sub);
-        console.log('🔔 Push subscription successful');
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array("BCkItBSMU1gfKoiNDaKLZj9xvKGPFyYn9dqZ29_wNunc4_z-ITd9xhvxXU8fXTN0JQbb8b2YujBCCPi2M05m9co")
+          });
+          await API.subscribePush(sub);
+          console.log('🔔 Push subscription successful');
+        }
+      } else {
+        console.log('✅ Already subscribed');
       }
     } else {
-      console.log('✅ Already subscribed');
+      console.log('✅ Service Worker already registered');
     }
   }
 })();
