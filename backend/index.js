@@ -117,9 +117,9 @@ cron.schedule('0 * * * *', async () => {
           console.log('🗑️ Removed expired endpoint:', entry.endpoint);
         }
       });
+      
+      console.log(`✅ Hourly weather push sent for ${city}`);
     }
-
-    console.log(`✅ Hourly weather push sent for ${city}`);
   } catch (err) {
     console.error('Scheduled push failed:', err);
   }
