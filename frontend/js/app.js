@@ -15,6 +15,7 @@ const geoBtn = el('geoBtn');
 const unitToggle = el('unitToggle');
 const themeToggle = el('themeToggle');
 const compareList = el('compareList');
+const unsubscribeBtn = el('unsubscribeBtn');
 
 async function performSearch(term) {
   try {
@@ -91,6 +92,14 @@ themeToggle.addEventListener('click', ()=> {
   themeToggle.textContent = app.classList.contains('dark') ? 'Light' : 'Dark';
 });
 
+if (unsubscribeBtn) {
+  unsubscribeBtn.addEventListener('click', async () => {
+    await window.unsubscribeUser();
+    alert('You have unsubscribed from notifications.');
+  });
+}
+
+
 // Compare Cities Feature
 async function addCityToCompare(city) {
   try {
@@ -147,36 +156,51 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 (async () => {
-  if ('serviceWorker' in navigator && 'PushManager' in window) {
-    // Unregister old SWs & remove old subscriptions
-    const regs = await navigator.serviceWorker.getRegistrations();
-    for (const reg of regs) {
-      const sub = await reg.pushManager.getSubscription();
-      if (sub) await API.unsubscribePush(sub); // delete old subscription from backend
-      await reg.unregister();
-    }
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
 
-    // Register new SW
-    if (regs.length === 0) {
-      const reg = await navigator.serviceWorker.register('/sw.js');
-      await navigator.serviceWorker.ready;
+  // Check if SW already registered
+  const regs = await navigator.serviceWorker.getRegistrations();
+  let reg = regs.find(r => r.active);
 
-      let sub = await reg.pushManager.getSubscription();
-      if (!sub) {
-        const permission = await Notification.requestPermission();
-        if (permission === 'granted') {
-          sub = await reg.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array("BCkItBSMU1gfKoiNDaKLZj9xvKGPFyYn9dqZ29_wNunc4_z-ITd9xhvxXU8fXTN0JQbb8b2YujBCCPi2M05m9co")
-          });
-          await API.subscribePush(sub);
-          console.log('🔔 Push subscription successful');
-        }
-      } else {
-        console.log('✅ Already subscribed');
-      }
-    } else {
-      console.log('✅ Service Worker already registered');
-    }
+  if (!reg) {
+    console.log('🛠 Registering new Service Worker...');
+    reg = await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
+    console.log('⚡ Service Worker activated');
+  } else {
+    console.log('✅ Service Worker already registered');
   }
+
+  // Get existing subscription
+  let sub = await reg.pushManager.getSubscription();
+
+  if (!sub) {
+    console.log('📩 Requesting notification permission...');
+    const permission = await Notification.requestPermission();
+
+    if (permission === 'granted') {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(
+          "BCkItBSMU1gfKoiNDaKLZj9xvKGPFyYn9dqZ29_wNunc4_z-ITd9xhvxXU8fXTN0JQbb8b2YujBCCPi2M05m9co"
+        )
+      });
+      await API.subscribePush(sub);
+      console.log('🔔 Push subscription successful');
+    } else {
+      console.warn('🚫 Notifications blocked by user.');
+    }
+  } else {
+    console.log('✅ Already subscribed');
+  }
+
+  window.unsubscribeUser = async () => {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      await sub.unsubscribe();
+      await API.unsubscribePush(sub);
+      console.log('🗑️ User unsubscribed');
+    }
+  };
 })();

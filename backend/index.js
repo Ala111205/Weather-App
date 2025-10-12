@@ -9,6 +9,7 @@ const cors = require('cors');
 const weatherRoutes = require('./routes/weather');
 const pushRoutes = require('./routes/push');
 const Subscription = require('./model/subscription');
+const LastCity = require('./model/lastCity');
 const cron = require('node-cron');
 const axios = require('axios');
 
@@ -87,35 +88,33 @@ webpush.setVapidDetails(
 cron.schedule('0 * * * *', async () => {
   console.log('Checking weather for subscribers...');
   try {
-    const subs = await Subscription.find();
-    const lastCity = await LastCity.findOne().sort({ updatedAt: -1 });
+    const lastCities = await LastCity.find(); // all devices' last searched cities
 
-    if (!lastCity) {
-      console.log('⚠️ No last searched city found, skipping cron push.');
-      return;
-    }
+    for (const entry of lastCities) {
+      const sub = await Subscription.findOne({ endpoint: entry.endpoint });
+      if (!sub) continue; // skip if subscription expired
 
-    const city = lastCity.name;
-    const res = await axios.get(`https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${process.env.OPENWEATHER_API_KEY}`);
-    const { temp } = res.data.main;
-    const description = res.data.weather[0].description;
+      const city = entry.name;
+      const res = await axios.get(
+        `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${process.env.OPENWEATHER_API_KEY}`
+      );
+      const { temp } = res.data.main;
+      const description = res.data.weather[0].description;
 
-    // ✅ FIX: wrap in `data` to prevent double notifications
-    const payload = JSON.stringify({
-      data: {
-        title: `Weather in ${city}`,
-        body: `${description}, ${temp}°`,
-        icon: `${process.env.FRONTEND_BASE_URL}/assets/icons/icon-192.png`,
-        badge: `${process.env.FRONTEND_BASE_URL}/assets/icons/icon-192.png`
-      }
-    });
+      const payload = JSON.stringify({
+        data: {
+          title: `🌤 Weather in ${city}`,
+          body: `${description}, ${temp}°C`,
+          icon: `${process.env.FRONTEND_BASE_URL}/assets/icons/icon-192.png`,
+          badge: `${process.env.FRONTEND_BASE_URL}/assets/icons/icon-192.png`
+        }
+      });
 
-    for (const s of subs) {
-      await webpush.sendNotification(s, payload).catch(err => {
-        console.error('Push send error:', err.statusCode);
+      await webpush.sendNotification(sub, payload).catch(async (err) => {
         if (err.statusCode === 404 || err.statusCode === 410) {
-          Subscription.deleteOne({ endpoint: s.endpoint });
-          console.log('🗑️ Deleted expired subscription');
+          await Subscription.deleteOne({ endpoint: entry.endpoint });
+          await LastCity.deleteOne({ endpoint: entry.endpoint });
+          console.log('🗑️ Removed expired endpoint:', entry.endpoint);
         }
       });
     }

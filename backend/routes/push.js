@@ -59,7 +59,7 @@ router.post('/notify-city', async (req, res) => {
   const { city, temp, description, endpoint } = req.body;
   const baseURL = getBaseURL();
 
-  await LastCity.findOneAndUpdate({}, { name: city, updatedAt: new Date() }, { upsert: true });
+  await LastCity.findOneAndUpdate({endpoint}, { name: city, updatedAt: new Date() }, { upsert: true });
 
   const notificationId = `weather-${Date.now()}`; 
   const payload = JSON.stringify({
