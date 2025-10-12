@@ -88,6 +88,14 @@ cron.schedule('0 * * * *', async () => {
   console.log('Checking weather for subscribers...');
   try {
     const subs = await Subscription.find();
+    const lastCity = await LastCity.findOne().sort({ updatedAt: -1 });
+
+    if (!lastCity) {
+      console.log('⚠️ No last searched city found, skipping cron push.');
+      return;
+    }
+
+    const city = lastCity.name;
     const res = await axios.get(`https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${process.env.OPENWEATHER_API_KEY}`);
     const { temp } = res.data.main;
     const description = res.data.weather[0].description;
@@ -112,7 +120,7 @@ cron.schedule('0 * * * *', async () => {
       });
     }
 
-    console.log('✅ Weather push sent');
+    console.log(`✅ Hourly weather push sent for ${city}`);
   } catch (err) {
     console.error('Scheduled push failed:', err);
   }

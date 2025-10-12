@@ -47,13 +47,25 @@ export async function reverseGeocode(lat, lon) {
 export async function pushCityWeather(cityData) {
   try {
     const { name, main, weather } = cityData;
+
+     // ✅ Get the current active push subscription
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+
+    // ✅ Safeguard: only continue if subscription exists
+    if (!sub) {
+      console.warn('⚠️ No push subscription found.');
+      return;
+    }
+    
     await fetch(`${BASE_URL}/api/push/notify-city`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         city: name,
         temp: main.temp,
-        description: weather[0].description
+        description: weather[0].description,
+        endpoint: sub.endpoint 
       })
     });
   } catch (err) {

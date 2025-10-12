@@ -1,6 +1,7 @@
 const express = require('express');
 const webpush = require('web-push');
 const Subscription = require('../model/subscription');
+const LastCity = require('../model/lastCity');
 const router = express.Router();
 
 webpush.setVapidDetails(
@@ -20,10 +21,12 @@ router.post('/subscribe', async (req, res) => {
     const { endpoint, keys } = req.body;
     if (!endpoint || !keys) return res.status(400).json({ message: 'Invalid subscription' });
 
+    const deviceId = Buffer.from(endpoint).toString('base64').slice(0, 20);
+
     // Remove duplicates (optional)
     await Subscription.deleteMany({ endpoint });
 
-    await Subscription.create({ endpoint, keys });
+    await Subscription.create({ endpoint, keys, deviceId });
     console.log('✅ New subscription added');
     res.status(201).json({ message: 'Subscribed successfully' });
   } catch (err) {
@@ -53,8 +56,10 @@ router.get('/unsubscribe', (req, res) => {
 
 // Notify weather
 router.post('/notify-city', async (req, res) => {
-  const { city, temp, description } = req.body;
+  const { city, temp, description, endpoint } = req.body;
   const baseURL = getBaseURL();
+
+  await LastCity.findOneAndUpdate({}, { name: city, updatedAt: new Date() }, { upsert: true });
 
   const notificationId = `weather-${Date.now()}`; 
   const payload = JSON.stringify({
@@ -68,7 +73,8 @@ router.post('/notify-city', async (req, res) => {
   });
 
   try {
-    const subs = await Subscription.find();
+    const subs = await Subscription.find(endpoint? {endpoint}: {});
+    console.log(`📡 Sending to ${subs.length} subscription(s)`);
     for (const s of subs) {
       try {
         await webpush.sendNotification(s, payload);
