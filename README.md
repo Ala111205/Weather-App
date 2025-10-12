@@ -48,3 +48,29 @@ Hourly background notifications, even when the app is closed
 💾 Installable PWA (Add to Home Screen support)
 
 🌐 Cross-origin protected API proxy for OpenWeather API
+
+**⚙️ Tech Stack:-**
+
+**🖥️ Frontend**
+
+HTML5, CSS3, JavaScript (ES6 Modules) – modular code structure for maintainability.
+
+Chart.js – temperature and forecast trend visualization.
+
+Leaflet.js – interactive map rendering and location handling.
+
+GSAP (GreenSock Animation Platform) – smooth UI transitions and animations.
+
+Service Worker & Manifest.json – for offline caching, push notifications, and PWA installable features.
+
+**🧠 Backend**
+
+Node.js + Express.js – server-side application, API proxy, and notification dispatcher.
+
+web-push – handles Web Push notifications to subscribed devices.
+
+MongoDB / Mongoose – storage of push subscriptions and last searched cities.
+
+cors & dotenv – secure API access and environment variable management.
+
+Deployment – Render (or Vercel proxy) for production-ready hosting.
