@@ -82,6 +82,24 @@ main>div:first-child section:nth-child(2) {
     cursor:pointer; 
 }
 
+.notification {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 24px;
+    transition: all 0.3s ease;
+}
+
+.fa-bell {
+  display: inline-block;
+}
+
+.fa-bell-slash {
+  display: none;
+}
+
 .card { 
     background:var(--card); 
     padding:12px; 

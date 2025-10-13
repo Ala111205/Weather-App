@@ -15,6 +15,7 @@ const geoBtn = el('geoBtn');
 const unitToggle = el('unitToggle');
 const themeToggle = el('themeToggle');
 const compareList = el('compareList');
+const subscribeBtn = el('subscribeBtn');
 const unsubscribeBtn = el('unsubscribeBtn');
 
 async function performSearch(term) {
@@ -92,10 +93,21 @@ themeToggle.addEventListener('click', ()=> {
   themeToggle.textContent = app.classList.contains('dark') ? 'Light' : 'Dark';
 });
 
+if (subscribeBtn) {
+  subscribeBtn.addEventListener('click', async () => {
+    await window.subscribeUser();
+    alert('You have subscribed to notifications.');
+    unsubscribeBtn.style.display = "inline-block";
+    subscribeBtn.style.display = "none"
+  });
+}
+
 if (unsubscribeBtn) {
   unsubscribeBtn.addEventListener('click', async () => {
     await window.unsubscribeUser();
     alert('You have unsubscribed from notifications.');
+    subscribeBtn.style.display = "inline-block";
+    unsubscribeBtn.style.display = "none"
   });
 }
 
@@ -156,11 +168,16 @@ initMap();
 UI.updateRecentSearches(recent);
 
 function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
   const rawData = window.atob(base64);
-  return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
 }
+
 
 (async () => {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
@@ -177,6 +194,8 @@ function urlBase64ToUint8Array(base64String) {
   } else {
     console.log('✅ Service Worker already registered');
   }
+
+  window.swRegistration = reg;
 
   // Get existing subscription
   let sub = await reg.pushManager.getSubscription();
@@ -197,29 +216,68 @@ function urlBase64ToUint8Array(base64String) {
     } else {
       console.warn('🚫 Notifications blocked by user.');
     }
+
+    subscribeBtn.style.display = "inline-block";
+    unsubscribeBtn.style.display = "none";
   } else {
     console.log('✅ Already subscribed');
+
+    subscribeBtn.style.display = "none";
+    unsubscribeBtn.style.display = "inline-block";
   }
-
-  window.unsubscribeUser = async () => {
-    const reg = await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.getSubscription();
-    if (sub) {
-      await API.unsubscribePush(sub);
-
-      // Unsubscribe from browser push
-      const unsubscribed = await sub.unsubscribe();
-      if (unsubscribed) {
-        console.log('🗑️ User manually unsubscribed, notifications stopped');
-        alert('You will no longer receive notifications.');
-
-        if (reg.active) {
-          reg.active.postMessage({ type: 'UNSUBSCRIBE' });
-        }
-      }
-    } else {
-      console.log('⚠️ No active subscription found');
-      alert('You are not subscribed to notifications.');
-    }
-  };
 })();
+
+window.subscribeUser = async () => {
+  try {
+    const reg = window.swRegistration || (await navigator.serviceWorker.ready);
+    const existingSub = await reg.pushManager.getSubscription();
+
+    if (existingSub) {
+      alert('You are already subscribed to notifications.');
+      return;
+    }
+
+    console.log('📩 Requesting notification permission...');
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      alert('Please allow notifications in your browser settings.');
+      return;
+    }
+
+    const newSub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(
+        'BCkItBSMU1gfKoiNDaKLZj9xvKGPFyYn9dqZ29_wNunc4_z-ITd9xhvxXU8fXTN0JQbb8b2YujBCCPi2M05m9co'
+      )
+    });
+
+    await API.subscribePush(newSub);
+    console.log('✅ Notifications turned ON');
+    alert('You have subscribed to notifications.');
+
+  } catch (err) {
+    console.error('❌ Failed to subscribe:', err);
+    alert('Failed to enable notifications.');
+  }
+};
+
+window.unsubscribeUser = async () => {
+  const reg = window.swRegistration || (await navigator.serviceWorker.ready);
+  const sub = await reg.pushManager.getSubscription();
+
+  if (sub) {
+    await API.unsubscribePush(sub);
+    const unsubscribed = await sub.unsubscribe();
+
+    if (unsubscribed) {
+      console.log('🗑️ Notifications turned OFF');
+      alert('Notifications have been turned off.');
+      if (reg.active) reg.active.postMessage({ type: 'UNSUBSCRIBE' });
+    }
+  } else {
+    console.log('⚠️ No active subscription found');
+    alert('You are not subscribed to notifications.');
+  }
+};
+
+
