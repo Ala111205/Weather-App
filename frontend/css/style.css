@@ -83,13 +83,19 @@ main>div:first-child section:nth-child(2) {
 }
 
 .notification {
+    margin-left: 10px;
     display: flex;
     justify-content: center;
     align-items: center;
     gap: 10px;
     cursor: pointer;
     font-size: 24px;
-    transition: all 0.3s ease;
+    color: #444;
+}
+
+.notification i:hover {
+  color: #1e90ff;
+  transition: color 0.3s ease;
 }
 
 .fa-bell {

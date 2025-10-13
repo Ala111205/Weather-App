@@ -96,7 +96,6 @@ themeToggle.addEventListener('click', ()=> {
 if (subscribeBtn) {
   subscribeBtn.addEventListener('click', async () => {
     await window.subscribeUser();
-    alert('You have subscribed to notifications.');
     unsubscribeBtn.style.display = "inline-block";
     subscribeBtn.style.display = "none"
   });
@@ -105,7 +104,6 @@ if (subscribeBtn) {
 if (unsubscribeBtn) {
   unsubscribeBtn.addEventListener('click', async () => {
     await window.unsubscribeUser();
-    alert('You have unsubscribed from notifications.');
     subscribeBtn.style.display = "inline-block";
     unsubscribeBtn.style.display = "none"
   });
