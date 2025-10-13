@@ -37,15 +37,15 @@ Built with a modular full-stack architecture, featuring push notifications, serv
 
 📅 Persistent city storage (recent searches + compare list)
 
-🔔 Push Notifications
+🔔 **Push Notifications**
 
 Instant weather alerts from backend (via Web Push)
 
 Hourly background notifications, even when the app is closed
 
-⚙️ Users can manually turn notifications on or off directly from the notification icon.
+⚠️ Users can manually turn notifications on or off directly from the notification icon.
 
-💾 Installable PWA (Add to Home Screen support)
+💾 **Installable PWA**
 
 🌐 Cross-origin protected API proxy for OpenWeather API
 
