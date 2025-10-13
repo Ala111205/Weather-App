@@ -43,7 +43,7 @@ Instant weather alerts from backend (via Web Push)
 
 Hourly background notifications, even when the app is closed
 
-⚠️ If notifications are manually unsubscribed, users must grant permission again to resume alerts
+⚙️ Users can manually turn notifications on or off directly from the notification icon.
 
 💾 Installable PWA (Add to Home Screen support)
 
