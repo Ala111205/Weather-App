@@ -3,6 +3,8 @@
 A professional-grade Progressive Web App (PWA) delivering real-time weather updates, air quality data, city comparisons, and more — with offline support.
 Built with a modular full-stack architecture, featuring push notifications, service worker caching, hourly background alerts, and a smooth, interactive user interface.
 
+**Repository Link** 👉 https://weather-app-two-red-discc085r3.vercel.app/
+
 **🚀 Features:-**
 
 **🔹 Core Weather Features**
@@ -37,15 +39,15 @@ Built with a modular full-stack architecture, featuring push notifications, serv
 
 📅 Persistent city storage (recent searches + compare list)
 
-🔔 Push Notifications
+🔔 **Push Notifications**
 
 Instant weather alerts from backend (via Web Push)
 
 Hourly background notifications, even when the app is closed
 
-⚠️ If notifications are manually unsubscribed, users must grant permission again to resume alerts
+⚠️ Users can manually turn notifications on or off directly from the notification icon.
 
-💾 Installable PWA (Add to Home Screen support)
+💾 **Installable PWA**
 
 🌐 Cross-origin protected API proxy for OpenWeather API
 
