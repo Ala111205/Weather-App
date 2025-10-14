@@ -33,7 +33,7 @@ app.use(cors({
   credentials: true
 }));
 
-// ✅ Handle preflight requests manually
+// Handle preflight requests manually
 app.use((req, res, next) => {
   if (req.method === 'OPTIONS') {
     const origin = req.headers.origin;
@@ -56,7 +56,7 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB connected...'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-// ✅ Trust proxy (required for Render)
+// Trust proxy (required for Render)
 app.set('trust proxy', 1);
 const limiter = rateLimit({
   windowMs: 60 * 1000,
@@ -75,14 +75,14 @@ app.use(express.static('../frontend'));
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Server listening on ${PORT}`));
 
-// ✅ VAPID setup
+// VAPID setup
 webpush.setVapidDetails(
   'mailto:sadham070403.com',
   process.env.VAPID_PUBLIC_KEY,
   process.env.VAPID_PRIVATE_KEY
 );
 
-// ✅ CRON job — fixed payload structure
+// CRON job — fixed payload structure
 cron.schedule('0 * * * *', async () => {
   console.log('⏰ Checking weather for subscribers...');
 
@@ -139,6 +139,6 @@ cron.schedule('0 * * * *', async () => {
   }
 }, {
   scheduled: true,
-  timezone: 'Asia/Kolkata' // ensure consistent cron execution
+  timezone: 'Asia/Kolkata' 
 });
 

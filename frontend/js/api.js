@@ -48,11 +48,11 @@ export async function pushCityWeather(cityData) {
   try {
     const { name, main, weather } = cityData;
 
-     // ✅ Get the current active push subscription
+     // Get the current active push subscription
     const reg = await navigator.serviceWorker.ready;
     const sub = await reg.pushManager.getSubscription();
 
-    // ✅ Safeguard: only continue if subscription exists
+    // Safeguard: only continue if subscription exists
     if (!sub) {
       console.warn('⚠️ No push subscription found.');
       return;
