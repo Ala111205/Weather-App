@@ -84,43 +84,63 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY
 );
 
-// ✅ CRON job — fixed payload structure (prevents double notifications)
+// ✅ CRON job — fixed payload structure
 cron.schedule('0 * * * *', async () => {
-  console.log('Checking weather for subscribers...');
+  console.log('⏰ Checking weather for subscribers...');
+
   try {
-    const lastCities = await LastCity.find(); // all devices' last searched cities
+    const lastCities = await LastCity.find(); // get all devices' last searched cities
 
-    for (const entry of lastCities) {
-      const sub = await Subscription.findOne({ endpoint: entry.endpoint });
-      if (!sub) continue; // skip if subscription expired
+    // Use Promise.all for parallel async execution without blocking
+    await Promise.all(lastCities.map(async (entry) => {
+      try {
+        const sub = await Subscription.findOne({ endpoint: entry.endpoint });
+        if (!sub) return; // skip if subscription expired
 
-      const city = entry.name;
-      const res = await axios.get(
-        `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${process.env.OPENWEATHER_API_KEY}`
-      );
-      const { temp } = res.data.main;
-      const description = res.data.weather[0].description;
+        const city = entry.name;
+        const res = await axios.get(
+          `https://api.openweathermap.org/data/2.5/weather`,
+          {
+            params: {
+              q: city,
+              units: 'metric',
+              appid: process.env.OPENWEATHER_API_KEY
+            }
+          }
+        );
 
-      const payload = JSON.stringify({
-        data: {
-          title: `🌤 Weather in ${city}`,
-          body: `${description}, ${temp}°C`,
-          icon: `${process.env.FRONTEND_BASE_URL}/assets/icons/icon-192.png`,
-          badge: `${process.env.FRONTEND_BASE_URL}/assets/icons/icon-192.png`
-        }
-      });
+        const { temp } = res.data.main;
+        const description = res.data.weather[0].description;
 
-      await webpush.sendNotification(sub, payload).catch(async (err) => {
+        const payload = JSON.stringify({
+          data: {
+            title: `🌤 Weather in ${city}`,
+            body: `${description}, ${temp}°C`,
+            icon: `${process.env.FRONTEND_BASE_URL}/assets/icons/icon-192.png`,
+            badge: `${process.env.FRONTEND_BASE_URL}/assets/icons/icon-192.png`
+          }
+        });
+
+        await webpush.sendNotification(sub, payload);
+        console.log(`✅ Hourly weather push sent for ${city}`);
+
+      } catch (err) {
         if (err.statusCode === 404 || err.statusCode === 410) {
+          // remove expired subscription and lastCity
           await Subscription.deleteOne({ endpoint: entry.endpoint });
           await LastCity.deleteOne({ endpoint: entry.endpoint });
-          console.log('🗑️ Removed expired endpoint:', entry.endpoint);
+          console.log('🗑️ Removed expired subscription & last city for endpoint:', entry.endpoint);
+        } else {
+          console.error('⚠️ Failed to send push for', entry.endpoint, err);
         }
-      });
-      
-      console.log(`✅ Hourly weather push sent for ${city}`);
-    }
+      }
+    }));
+    
   } catch (err) {
-    console.error('Scheduled push failed:', err);
+    console.error('❌ Scheduled push failed:', err);
   }
+}, {
+  scheduled: true,
+  timezone: 'Asia/Kolkata' // ensure consistent cron execution
 });
+
