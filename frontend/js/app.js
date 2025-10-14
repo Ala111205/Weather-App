@@ -153,7 +153,6 @@ async function addCityToCompare(city) {
 
     compareList.appendChild(cardDiv);
 
-    // save for persistence
     compareCities = [...new Set([...compareCities, city])];
     localStorage.setItem('compareCities', JSON.stringify(compareCities));
 

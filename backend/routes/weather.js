@@ -88,7 +88,6 @@ router.get('/air', async (req, res) => {
   }
 });
 
-// Optional reverse geocoding via OpenWeather (or add Nominatim when needed)
 router.get('/reverse', async (req, res) => {
   try {
     const { lat, lon } = req.query;

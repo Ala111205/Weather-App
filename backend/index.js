@@ -21,7 +21,6 @@ const allowedOrigins = [
   "https://weather-app-two-red-discc085r3.vercel.app"
 ];
 
-// ✅ CORS setup
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
@@ -53,7 +52,6 @@ app.use((req, res, next) => {
 app.use(helmet());
 app.use(bodyParser.json());
 
-// ✅ MongoDB
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB connected...'))
   .catch(err => console.error('MongoDB connection error:', err));

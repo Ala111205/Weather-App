@@ -9,7 +9,7 @@ self.addEventListener('install', event => {
     caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS))
   );
   console.log('🛠 SW install event');
-  self.skipWaiting(); // activate immediately
+  self.skipWaiting();
 });
 
 // Activate event — claim clients
