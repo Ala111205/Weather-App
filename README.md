@@ -47,6 +47,11 @@ Hourly background notifications, even when the app is closed
 
 ⚠️ Users can manually turn notifications on or off directly from the notification icon.
 
+⚙️ **Automated Weather Push via Cron Job**
+
+To keep users updated 24/7, the backend integrates with cron-job.org
+ to automatically trigger weather notifications hourly — even when the frontend is closed.
+
 💾 **Installable PWA**
 
 🌐 Cross-origin protected API proxy for OpenWeather API
