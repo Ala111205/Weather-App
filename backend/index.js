@@ -69,9 +69,6 @@ app.use('/api/push', pushRoutes);
 // Optional static serving for frontend
 app.use(express.static('../frontend'));
 
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`Server listening on ${PORT}`));
-
 // VAPID setup
 webpush.setVapidDetails(
   'mailto:sadham070403.com',
@@ -81,11 +78,20 @@ webpush.setVapidDetails(
 
 app.get('/trigger-weather-push', async (req, res) => {
   try {
+    console.log('🌦️ Triggered from cron-job.org at', new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }));
     await sendWeatherPush();
-    res.status(200).send('✅ Weather push executed successfully');
+
+    res.status(200).json({ success: true, time: new Date().toISOString() });
   } catch (err) {
-    console.error('❌ Error in weather push:', err);
-    res.status(500).send('Error');
+    console.error('❌ Error during weather push:', err.message);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
+
+app.get('/', (req, res) => {
+  res.send('☀️ Weather PWA backend is running fine');
+});
+
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => console.log(`Server listening on ${PORT}`));
 
