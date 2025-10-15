@@ -8,10 +8,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const weatherRoutes = require('./routes/weather');
 const pushRoutes = require('./routes/push');
-const Subscription = require('./model/subscription');
-const LastCity = require('./model/lastCity');
-const cron = require('node-cron');
-const axios = require('axios');
+const sendWeatherPush = require('./utils/sendWeatherPush');
 
 const app = express();
 
@@ -82,63 +79,13 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY
 );
 
-// CRON job — fixed payload structure
-cron.schedule('0 * * * *', async () => {
-  console.log('⏰ Checking weather for subscribers...');
-
+app.get('/trigger-weather-push', async (req, res) => {
   try {
-    const lastCities = await LastCity.find(); // get all devices' last searched cities
-
-    // Use Promise.all for parallel async execution without blocking
-    await Promise.all(lastCities.map(async (entry) => {
-      try {
-        const sub = await Subscription.findOne({ endpoint: entry.endpoint });
-        if (!sub) return; // skip if subscription expired
-
-        const city = entry.name;
-        const res = await axios.get(
-          `https://api.openweathermap.org/data/2.5/weather`,
-          {
-            params: {
-              q: city,
-              units: 'metric',
-              appid: process.env.OPENWEATHER_API_KEY
-            }
-          }
-        );
-
-        const { temp } = res.data.main;
-        const description = res.data.weather[0].description;
-
-        const payload = JSON.stringify({
-          data: {
-            title: `🌤 Weather in ${city}`,
-            body: `${description}, ${temp}°C`,
-            icon: `${process.env.FRONTEND_BASE_URL}/assets/icons/icon-192.png`,
-            badge: `${process.env.FRONTEND_BASE_URL}/assets/icons/icon-192.png`
-          }
-        });
-
-        await webpush.sendNotification(sub, payload);
-        console.log(`✅ Hourly weather push sent for ${city}`);
-
-      } catch (err) {
-        if (err.statusCode === 404 || err.statusCode === 410) {
-          // remove expired subscription and lastCity
-          await Subscription.deleteOne({ endpoint: entry.endpoint });
-          await LastCity.deleteOne({ endpoint: entry.endpoint });
-          console.log('🗑️ Removed expired subscription & last city for endpoint:', entry.endpoint);
-        } else {
-          console.error('⚠️ Failed to send push for', entry.endpoint, err);
-        }
-      }
-    }));
-    
+    await sendWeatherPush();
+    res.status(200).send('✅ Weather push executed successfully');
   } catch (err) {
-    console.error('❌ Scheduled push failed:', err);
+    console.error('❌ Error in weather push:', err);
+    res.status(500).send('Error');
   }
-}, {
-  scheduled: true,
-  timezone: 'Asia/Kolkata' 
 });
 

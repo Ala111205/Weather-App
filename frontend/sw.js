@@ -1,4 +1,4 @@
-const CACHE_NAME = 'weather-pwa-v2'; 
+const CACHE_NAME = 'weather-pwa-v3'; 
 const STATIC_ASSETS = [
   '/', '/index.html', '/css/style.css', '/js/app.js', '/manifest.json'
 ];
@@ -14,7 +14,18 @@ self.addEventListener('install', event => {
 
 // Activate event — claim clients
 self.addEventListener('activate', event => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(
+        keys.map(key => {
+          if (key !== CACHE_NAME) {
+            console.log('🗑️ Removing old cache:', key);
+            return caches.delete(key);
+          }
+        })
+      )
+    ).then(() => self.clients.claim())
+  );
   console.log('⚡ SW activate event');
 });
 
@@ -56,11 +67,11 @@ async function networkFirst(req) {
 // Push notifications listener
 self.addEventListener('push', event => {
   console.log('🔥 Push received at', new Date().toISOString());
-  if (!event.data) return; // ignore empty pushes
+  if (!event.data) return; 
 
   let payload = {};
   try {
-    payload = event.data.json()?.data || {}; // read `data` from backend
+    payload = event.data.json()?.data || {}; 
   } catch {
     console.warn('⚠️ Malformed push event data');
     return;
@@ -75,7 +86,7 @@ self.addEventListener('push', event => {
 
   console.log('🔥 Push received:', id);
   
-  // Use the id as tag so duplicate notifications are replaced instead of duplicated
+  // Use the id as tag
   const tag = id;
 
   event.waitUntil((async () => {
@@ -86,7 +97,7 @@ self.addEventListener('push', event => {
       return;
     }
 
-    // Show notification (tag prevents duplicates / will replace)
+    // Show notification (tag prevents duplicates)
     await self.registration.showNotification(title, {
       body,
       icon,
