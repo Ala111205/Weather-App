@@ -5,9 +5,19 @@ const Subscription = require('../model/subscription');
 const LastCity = require('../model/lastCity');
 
 async function sendWeatherPush() {
-  console.log('⏰ Checking weather for subscribers...');
+  console.log('🌦️ Checking weather for subscribers...');
 
   const lastCities = await LastCity.find();
+
+  if (!lastCities.length) {
+    console.log('⚠️ No subscribers found.');
+    return { sent: 0, removed: 0 };
+  }
+
+  let sentCount = 0;
+  let removedCount = 0;
+
+  // Run in parallel but suppress verbose logs
   await Promise.all(
     lastCities.map(async (entry) => {
       try {
@@ -16,7 +26,7 @@ async function sendWeatherPush() {
 
         const city = entry.name;
         const res = await axios.get(
-          `https://api.openweathermap.org/data/2.5/weather`,
+          'https://api.openweathermap.org/data/2.5/weather',
           {
             params: {
               q: city,
@@ -39,18 +49,21 @@ async function sendWeatherPush() {
         });
 
         await webpush.sendNotification(sub, payload);
-        console.log(`✅ Hourly weather push sent for ${city}`);
+        sentCount++;
       } catch (err) {
         if (err.statusCode === 404 || err.statusCode === 410) {
           await Subscription.deleteOne({ endpoint: entry.endpoint });
           await LastCity.deleteOne({ endpoint: entry.endpoint });
-          console.log('🗑️ Removed expired endpoint:', entry.endpoint);
+          removedCount++;
         } else {
-          console.error('⚠️ Push failed for', entry.endpoint, err.message);
+          console.error(`⚠️ Push error: ${err.message.slice(0, 50)}`);
         }
       }
     })
   );
+
+  console.log(`✅ Summary: Sent=${sentCount}, Removed=${removedCount}`);
+  return { sent: sentCount, removed: removedCount };
 }
 
 module.exports = sendWeatherPush;
