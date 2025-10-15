@@ -79,7 +79,7 @@ webpush.setVapidDetails(
 app.get('/trigger-weather-push', async (req, res) => {
   try {
     console.log('🕒 Triggered via cron-job.org at', new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }));
-    const result = await sendWeatherPush(); // returns { sent, removed }
+    const result = await sendWeatherPush();
     res.status(200).json({
       success: true,
       time: new Date().toISOString(),
