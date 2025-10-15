@@ -1,4 +1,3 @@
-// utils/sendWeatherPush.js
 const axios = require('axios');
 const webpush = require('web-push');
 const Subscription = require('../model/subscription');
