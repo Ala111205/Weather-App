@@ -4,7 +4,8 @@ const Subscription = require('../model/subscription');
 const LastCity = require('../model/lastCity');
 
 async function sendWeatherPush() {
-  console.log('🌦️ Checking weather for subscribers...');
+  const quiet = process.env.CRON_MODE === 'true';
+  if (!quiet) console.log('🌦️ Checking weather for subscribers...');
 
   const lastCities = await LastCity.find();
 
