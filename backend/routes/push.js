@@ -23,7 +23,6 @@ router.post('/subscribe', async (req, res) => {
 
     const deviceId = Buffer.from(endpoint).toString('base64').slice(0, 20);
 
-    // Remove duplicates (optional)
     await Subscription.deleteMany({ endpoint });
 
     await Subscription.create({ endpoint, keys, deviceId });
