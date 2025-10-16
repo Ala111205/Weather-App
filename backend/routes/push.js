@@ -64,31 +64,29 @@ router.post('/check-subscription', async (req, res) => {
   }
 });
 
-const lastSent = {};
+const MIN_PUSH_INTERVAL = 10 * 60 * 1000;
 
 // Notify weather
 router.post('/notify-city', async (req, res) => {
   const { city, temp, description, endpoint: targetEndpoint } = req.body;
   const baseURL = getBaseURL();
 
-  // Prevent duplicate sends within 10 minutes for same city
-  if (lastSent[city] && Date.now() - lastSent[city] < 10 * 60 * 1000) {
-    console.log(`⏳ Skipping duplicate push for ${city}`);
-    return;
-  }
-  lastSent[city] = Date.now();
-
-  if (targetEndpoint) {
-    await LastCity.findOneAndUpdate(
-      { endpoint: targetEndpoint },
-      { name: city, updatedAt: new Date() },
-      { upsert: true }
-    );
-  }
-
   try {
-    const subs = await Subscription.find(targetEndpoint ? { endpoint: targetEndpoint } : {});
+    const existingCity = await LastCity.findOne({ name: city });
+    if (existingCity && Date.now() - new Date(existingCity.updatedAt).getTime() < MIN_PUSH_INTERVAL) {
+      console.log(`⏳ Skipping duplicate push for ${city}`);
+      return res.json({ ok: true, skipped: true });
+    }
 
+    if (targetEndpoint) {
+      await LastCity.findOneAndUpdate(
+        { endpoint: targetEndpoint },
+        { name: city, updatedAt: new Date() },
+        { upsert: true }
+      );
+    }
+
+    const subs = await Subscription.find(targetEndpoint ? { endpoint: targetEndpoint } : {});
     if (!subs.length) {
       console.log('📭 No subscriptions to send to.');
       return res.json({ ok: true, sent: 0 });
@@ -99,7 +97,7 @@ router.post('/notify-city', async (req, res) => {
     let sent = 0;
     for (const s of subs) {
       const tail = s.endpoint.slice(-12).replace(/[^a-z0-9]/gi, '');
-      const notificationId = `weather-${city.replace(/\s+/g,'_')}-${tail}`;
+      const notificationId = `weather-${city.replace(/\s+/g, '_')}-${tail}`;
 
       const payload = JSON.stringify({
         data: {
@@ -107,16 +105,16 @@ router.post('/notify-city', async (req, res) => {
           title: `Weather in ${city}`,
           body: `${description}, ${temp}°`,
           icon: `${baseURL}/assets/icons/icon-192.png`,
-          badge: `${baseURL}/assets/icons/icon-192.png`
-        }
+          badge: `${baseURL}/assets/icons/icon-192.png`,
+        },
       });
 
       try {
         await webpush.sendNotification(s, payload);
         sent++;
       } catch (err) {
-        console.error('Push send error for endpoint tail', tail, err && err.statusCode);
-        if (err && (err.statusCode === 404 || err.statusCode === 410)) {
+        console.error('Push send error for endpoint tail', tail, err?.statusCode);
+        if (err?.statusCode === 404 || err?.statusCode === 410) {
           await Subscription.deleteOne({ endpoint: s.endpoint });
           await LastCity.deleteOne({ endpoint: s.endpoint });
           console.log('🗑️ Deleted expired subscription', tail);

@@ -65,6 +65,7 @@ async function sendWeatherPush() {
       });
 
       await webpush.sendNotification(sub, payload);
+      await LastCity.updateOne({ endpoint: entry.endpoint }, { updatedAt: new Date() });
       sentCount++;
     } catch (err) {
       if (err.statusCode === 404 || err.statusCode === 410) {
