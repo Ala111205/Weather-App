@@ -55,8 +55,25 @@ async function sendWeatherPush() {
       const data = cityCache[entry.name];
       if (!data) continue;
 
+      const lastData = entry.lastData || {};
+      const newTemp = data.main.temp.toFixed(1);
+      const newDesc = data.weather[0].description;
+
+      // 🔸 Skip if weather hasn’t changed (within 1°C difference)
+      const tempDiff = Math.abs((lastData.temp || 0) - newTemp);
+      if (lastData.desc === newDesc && tempDiff < 1) {
+        console.log(`⏳ No weather change for ${entry.name} — skipping`);
+        continue;
+      }
+
+      await LastCity.updateOne(
+        { endpoint: entry.endpoint },
+        { lastData: { temp: newTemp, desc: newDesc }, updatedAt: new Date() }
+      );
+
       const payload = JSON.stringify({
         data: {
+          id: `weather-${entry.name.replace(/\s+/g, '_')}`,
           title: `🌤 Weather in ${entry.name}`,
           body: `${data.weather[0].description}, ${data.main.temp}°C`,
           icon: `${process.env.FRONTEND_BASE_URL}/assets/icons/icon-192.png`,
@@ -65,7 +82,6 @@ async function sendWeatherPush() {
       });
 
       await webpush.sendNotification(sub, payload);
-      await LastCity.updateOne({ endpoint: entry.endpoint }, { updatedAt: new Date() });
       sentCount++;
     } catch (err) {
       if (err.statusCode === 404 || err.statusCode === 410) {
