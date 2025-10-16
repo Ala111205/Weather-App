@@ -1,4 +1,4 @@
-const CACHE_NAME = 'weather-pwa-v6'; 
+const CACHE_NAME = 'weather-pwa-v7'; 
 const STATIC_ASSETS = [
   '/', '/index.html', '/css/style.css', '/js/app.js', '/manifest.json'
 ];
@@ -15,18 +15,16 @@ self.addEventListener('install', event => {
 // Activate event — claim clients
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys.map(key => {
-          if (key !== CACHE_NAME) {
-            console.log('🗑️ Removing old cache:', key);
-            return caches.delete(key);
-          }
-        })
-      )
-    ).then(() => self.clients.claim())
-  );
-  console.log('⚡ SW activate event');
+    (async () => {
+      const clientsList = await clients.matchAll({ includeUncontrolled: true });
+      console.log(`🌐 Clients controlled: ${clientsList.length}`);
+      // Clear any stale notifications on activate
+      const existing = await self.registration.getNotifications();
+      for (const n of existing) n.close();
+      await self.clients.claim();
+    })()
+  )
+  console.log('⚡ SW activate event', CACHE_NAME);
 });
 
 // Fetch event — cache strategy
@@ -64,8 +62,17 @@ async function networkFirst(req) {
   }
 }
 
+let lastPushTime = 0;
+
 // Push notifications listener
 self.addEventListener('push', event => {
+  const now = Date.now();
+  if (now - lastPushTime < 2000) {
+    console.log('⏱️ Duplicate push suppressed (timing)');
+    return;
+  }
+  lastPushTime = now;
+
   console.log('🔥 Push received at', new Date().toISOString());
   if (!event.data) return; 
 

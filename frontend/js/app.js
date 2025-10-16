@@ -173,7 +173,7 @@ UI.updateRecentSearches(recent);
 
   if (!reg) {
     console.log('🛠 Registering new Service Worker...');
-    reg = await navigator.serviceWorker.register('/sw.js');
+    reg = await navigator.serviceWorker.register('/sw-v7.js');
     await navigator.serviceWorker.ready;
     console.log('⚡ Service Worker activated');
   } else {

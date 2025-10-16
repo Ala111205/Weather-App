@@ -64,11 +64,19 @@ router.post('/check-subscription', async (req, res) => {
   }
 });
 
+const lastSent = {};
+
 // Notify weather
 router.post('/notify-city', async (req, res) => {
   const { city, temp, description, endpoint: targetEndpoint } = req.body;
   const baseURL = getBaseURL();
 
+  // Prevent duplicate sends within 10 minutes for same city
+  if (lastSent[city] && Date.now() - lastSent[city] < 10 * 60 * 1000) {
+    console.log(`⏳ Skipping duplicate push for ${city}`);
+    return;
+  }
+  lastSent[city] = Date.now();
 
   if (targetEndpoint) {
     await LastCity.findOneAndUpdate(
