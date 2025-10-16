@@ -133,5 +133,23 @@ router.post('/notify-city', async (req, res) => {
   }
 });
 
+router.post('/test-push', async (req, res) => {
+  const baseURL = getBaseURL();
+  const subs = await Subscription.find({});
+  for (const s of subs) {
+    await webpush.sendNotification(s, JSON.stringify({
+      data: {
+        title: 'Manual Push Test',
+        body: 'If you see this, notifications work!',
+        icon: `${baseURL}/assets/icons/icon-192.png`
+      }
+    }));
+  }
+  res.json({ ok: true });
+});
+
+router.get('/test-push', async (req, res) => {
+  res.json({ message: '✅ Push route is active, use POST to send notifications.' });
+});
 
 module.exports = router;
