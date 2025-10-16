@@ -59,7 +59,7 @@ async function sendWeatherPush() {
       const newTemp = data.main.temp.toFixed(1);
       const newDesc = data.weather[0].description;
 
-      // 🔸 Skip if weather hasn’t changed (within 1°C difference)
+      //  Skip if weather hasn’t changed (within 1°C difference)
       const tempDiff = Math.abs((lastData.temp || 0) - newTemp);
       if (lastData.desc === newDesc && tempDiff < 1) {
         console.log(`⏳ No weather change for ${entry.name} — skipping`);
@@ -85,8 +85,9 @@ async function sendWeatherPush() {
       sentCount++;
     } catch (err) {
       if (err.statusCode === 404 || err.statusCode === 410) {
-        await Subscription.deleteOne({ endpoint: entry.endpoint });
-        await LastCity.deleteOne({ endpoint: entry.endpoint });
+        await Subscription.deleteOne({ endpoint: s.endpoint });
+        await LastCity.deleteOne({ endpoint: s.endpoint });
+        console.log('🗑️ Deleted expired subscription', tail);
         removedCount++;
       } else if (!quiet) {
         console.error(`⚠️ Push error: ${err.message.slice(0, 80)}`);
