@@ -71,7 +71,7 @@ router.post('/notify-city', async (req, res) => {
 
   await LastCity.findOneAndUpdate({endpoint}, { name: city, updatedAt: new Date() }, { upsert: true });
 
-  const notificationId = `weather-${Date.now()}`; 
+  const notificationId = `weather-${city}-${endpoint.slice(-6)}`; 
   const payload = JSON.stringify({
     data: {          
       id: notificationId,
