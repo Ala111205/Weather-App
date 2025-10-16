@@ -53,7 +53,7 @@ router.get('/unsubscribe', (req, res) => {
   res.send('Use POST /api/push/unsubscribe with { endpoint } in body');
 });
 
-app.post('/check-subscription', async (req, res) => {
+router.post('/check-subscription', async (req, res) => {
   try {
     const { endpoint } = req.body;
     const exists = await Subscription.exists({ endpoint });
