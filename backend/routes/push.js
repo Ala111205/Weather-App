@@ -66,42 +66,62 @@ router.post('/check-subscription', async (req, res) => {
 
 // Notify weather
 router.post('/notify-city', async (req, res) => {
-  const { city, temp, description, endpoint } = req.body;
+  const { city, temp, description, endpoint: targetEndpoint } = req.body;
   const baseURL = getBaseURL();
 
-  await LastCity.findOneAndUpdate({endpoint}, { name: city, updatedAt: new Date() }, { upsert: true });
 
-  const notificationId = `weather-${city}-${endpoint.slice(-6)}`; 
-  const payload = JSON.stringify({
-    data: {          
-      id: notificationId,
-      title: `Weather in ${city}`,
-      body: `${description}, ${temp}°`,
-      icon: `${baseURL}/assets/icons/icon-192.png`,
-      badge: `${baseURL}/assets/icons/icon-192.png`
-    }
-  });
+  if (targetEndpoint) {
+    await LastCity.findOneAndUpdate(
+      { endpoint: targetEndpoint },
+      { name: city, updatedAt: new Date() },
+      { upsert: true }
+    );
+  }
 
   try {
-    const subs = await Subscription.find(endpoint? {endpoint}: {});
-    console.log(`📡 Sending to ${subs.length} subscription(s)`);
+    const subs = await Subscription.find(targetEndpoint ? { endpoint: targetEndpoint } : {});
+
+    if (!subs.length) {
+      console.log('📭 No subscriptions to send to.');
+      return res.json({ ok: true, sent: 0 });
+    }
+
+    console.log(`📡 Sending weather push for "${city}" to ${subs.length} subscription(s)`);
+
+    let sent = 0;
     for (const s of subs) {
+      const tail = s.endpoint.slice(-12).replace(/[^a-z0-9]/gi, '');
+      const notificationId = `weather-${city.replace(/\s+/g,'_')}-${tail}`;
+
+      const payload = JSON.stringify({
+        data: {
+          id: notificationId,
+          title: `Weather in ${city}`,
+          body: `${description}, ${temp}°`,
+          icon: `${baseURL}/assets/icons/icon-192.png`,
+          badge: `${baseURL}/assets/icons/icon-192.png`
+        }
+      });
+
       try {
         await webpush.sendNotification(s, payload);
+        sent++;
       } catch (err) {
-        console.error('Push send error:', err.statusCode);
-        if (err.statusCode === 404 || err.statusCode === 410) {
+        console.error('Push send error for endpoint tail', tail, err && err.statusCode);
+        if (err && (err.statusCode === 404 || err.statusCode === 410)) {
           await Subscription.deleteOne({ endpoint: s.endpoint });
-          console.log('🗑️ Deleted expired subscription');
+          await LastCity.deleteOne({ endpoint: s.endpoint });
+          console.log('🗑️ Deleted expired subscription', tail);
         }
       }
     }
 
-    res.json({ ok: true });
+    res.json({ ok: true, sent });
   } catch (err) {
-    console.error(err);
+    console.error('notify-city failed:', err);
     res.status(500).json({ message: 'Push failed' });
   }
 });
+
 
 module.exports = router;

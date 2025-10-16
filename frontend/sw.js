@@ -93,7 +93,7 @@ self.addEventListener('push', event => {
     // Check for existing notifications with same tag
     const existing = await self.registration.getNotifications({ tag });
     if (existing && existing.length > 0) {
-      console.log('🚫 Duplicate push ignored:', id);
+      console.log('🚫 Duplicate push ignored:', tag);
       return;
     }
 
@@ -103,8 +103,10 @@ self.addEventListener('push', event => {
       icon,
       badge,
       tag,
-      renotify: false
+      renotify: false,
+      data: { id, timestamp: Date.now() }
     });
+    console.log('✅ Notification shown:', tag);
   })());
 });
 
