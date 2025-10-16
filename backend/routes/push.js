@@ -53,6 +53,17 @@ router.get('/unsubscribe', (req, res) => {
   res.send('Use POST /api/push/unsubscribe with { endpoint } in body');
 });
 
+app.post('/check-subscription', async (req, res) => {
+  try {
+    const { endpoint } = req.body;
+    const exists = await Subscription.exists({ endpoint });
+    res.json({ exists: !!exists });
+  } catch (err) {
+    console.error('Error checking subscription:', err);
+    res.status(500).json({ exists: false });
+  }
+});
+
 // Notify weather
 router.post('/notify-city', async (req, res) => {
   const { city, temp, description, endpoint } = req.body;

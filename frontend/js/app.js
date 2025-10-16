@@ -164,18 +164,6 @@ async function addCityToCompare(city) {
 initMap();
 UI.updateRecentSearches(recent);
 
-function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
-
-
 (async () => {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
 
@@ -194,6 +182,9 @@ function urlBase64ToUint8Array(base64String) {
 
   window.swRegistration = reg;
 
+  const vapidKey = 'BCkItBSMU1gfKoiNDaKLZj9xvKGPFyYn9dqZ29_wNunc4_z-ITd9xhvxXU8fXTN0JQbb8b2YujBCCPi2M05m9co';
+  await API.verifyAndRestoreSubscription(vapidKey);
+
   // Get existing subscription
   let sub = await reg.pushManager.getSubscription();
 
@@ -204,7 +195,7 @@ function urlBase64ToUint8Array(base64String) {
     if (permission === 'granted') {
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(
+        applicationServerKey: API.urlBase64ToUint8Array(
           "BCkItBSMU1gfKoiNDaKLZj9xvKGPFyYn9dqZ29_wNunc4_z-ITd9xhvxXU8fXTN0JQbb8b2YujBCCPi2M05m9co"
         )
       });

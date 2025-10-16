@@ -73,7 +73,6 @@ export async function pushCityWeather(cityData) {
   }
 }
 
-
 export async function subscribePush(subscription) {
   const res = await fetch(`${BASE_URL}/api/push/subscribe`, { method:'POST', body: JSON.stringify(subscription), headers:{'Content-Type':'application/json'}});
   return res.json();
@@ -94,5 +93,63 @@ export async function unsubscribePush(subscription) {
   } catch (err) {
     console.error('Failed to unsubscribe:', err);
   }
+}
+
+// ✅ AUTO CHECK & REPAIR SUBSCRIPTION (NEW FUNCTION)
+export async function verifyAndRestoreSubscription(vapidPublicKey) {
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+
+    if (!sub) {
+      console.log('📩 No existing push subscription — subscribing new...');
+      await createAndSendSubscription(reg, vapidPublicKey);
+      return;
+    }
+
+    // Check if subscription exists in backend
+    const res = await fetch(`${BASE_URL}/api/push/check-subscription`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endpoint: sub.endpoint }),
+    });
+
+    const data = await res.json();
+
+    if (!data.exists) {
+      console.log('🔁 Subscription missing in backend — re-registering...');
+      await createAndSendSubscription(reg, vapidPublicKey);
+    } else {
+      console.log('✅ Subscription verified with backend');
+    }
+  } catch (err) {
+    console.error('❌ Failed to verify subscription:', err);
+  }
+}
+
+async function createAndSendSubscription(reg, vapidKey) {
+  const newSub = await reg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(vapidKey),
+  });
+
+  await fetch(`${BASE_URL}/api/push/subscribe`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(newSub),
+  });
+
+  console.log('✅ Push subscription created & synced with backend');
+}
+
+export function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
 }
 
