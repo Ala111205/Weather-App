@@ -234,7 +234,7 @@ window.subscribeUser = async () => {
 
     const newSub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(
+      applicationServerKey: API.getForecasturlBase64ToUint8Array(
         'BCkItBSMU1gfKoiNDaKLZj9xvKGPFyYn9dqZ29_wNunc4_z-ITd9xhvxXU8fXTN0JQbb8b2YujBCCPi2M05m9co'
       )
     });
