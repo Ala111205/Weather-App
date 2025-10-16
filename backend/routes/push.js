@@ -68,13 +68,19 @@ const MIN_PUSH_INTERVAL = 10 * 60 * 1000;
 
 // Notify weather
 router.post('/notify-city', async (req, res) => {
+  const userAgent = req.get('User-Agent') || '';
+  const isCron = userAgent.includes('cron-job.org');
+  
+  // Wrapper log function
+  const log = (...args) => { if (!isCron) console.log(...args); };
+
   const { city, temp, description, endpoint: targetEndpoint } = req.body;
   const baseURL = getBaseURL();
 
   try {
     const existingCity = await LastCity.findOne({ name: city });
     if (existingCity && Date.now() - new Date(existingCity.updatedAt).getTime() < MIN_PUSH_INTERVAL) {
-      console.log(`⏳ Skipping duplicate push for ${city}`);
+      log(`⏳ Skipping duplicate push for ${city}`);
       return res.json({ ok: true, skipped: true });
     }
 
@@ -88,11 +94,11 @@ router.post('/notify-city', async (req, res) => {
 
     const subs = await Subscription.find(targetEndpoint ? { endpoint: targetEndpoint } : {});
     if (!subs.length) {
-      console.log('📭 No subscriptions to send to.');
+      log('📭 No subscriptions to send to.');
       return res.json({ ok: true, sent: 0 });
     }
 
-    console.log(`📡 Sending weather push for "${city}" to ${subs.length} subscription(s)`);
+    log(`📡 Sending weather push for "${city}" to ${subs.length} subscription(s)`);
 
     let sent = 0;
     for (const s of subs) {
@@ -113,11 +119,9 @@ router.post('/notify-city', async (req, res) => {
         await webpush.sendNotification(s, payload);
         sent++;
       } catch (err) {
-        console.error('Push send error for endpoint tail', tail, err?.statusCode);
         if (err?.statusCode === 404 || err?.statusCode === 410) {
           await Subscription.deleteOne({ endpoint: s.endpoint });
           await LastCity.deleteOne({ endpoint: s.endpoint });
-          console.log('🗑️ Deleted expired subscription', tail);
         }
       }
     }
