@@ -53,24 +53,15 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB connected...'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-// Trust Render’s proxy (you already have this)
-app.set("trust proxy", 1);
-
-const generalLimiter = rateLimit({
+// Trust proxy (required for Render)
+app.set('trust proxy', 1);
+const limiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 60,
+  max: 500,
   standardHeaders: true,
-  legacyHeaders: false,
+  legacyHeaders: false
 });
-app.use("/api", generalLimiter);
-
-// Separate, relaxed limiter for the cron endpoint
-const cronLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-});
-app.use("/trigger-weather-push", cronLimiter);
+app.use("/api",limiter);
 
 app.use('/api/weather', weatherRoutes);
 app.use('/api/push', pushRoutes);
