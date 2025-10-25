@@ -60,11 +60,11 @@ async function sendWeatherPush() {
       const newDesc = data.weather[0].description;
 
       //  Skip if weather hasn’t changed (within 1°C difference)
-      const tempDiff = Math.abs((lastData.temp || 0) - newTemp);
-      if (lastData.desc === newDesc && tempDiff < 1) {
-        console.log(`⏳ No weather change for ${entry.name} — skipping`);
-        continue;
-      }
+      // const tempDiff = Math.abs((lastData.temp || 0) - newTemp);
+      // if (lastData.desc === newDesc && tempDiff < 1) {
+      //   console.log(`⏳ No weather change for ${entry.name} — skipping`);
+      //   continue;
+      // }
 
       await LastCity.updateOne(
         { endpoint: entry.endpoint },
