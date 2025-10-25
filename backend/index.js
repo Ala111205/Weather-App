@@ -57,7 +57,7 @@ mongoose.connect(process.env.MONGO_URI)
 app.set('trust proxy', 1);
 const limiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 500,
+  max: 300,
   standardHeaders: true,
   legacyHeaders: false
 });
