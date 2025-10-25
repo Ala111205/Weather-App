@@ -53,8 +53,6 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB connected...'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-const rateLimit = require("express-rate-limit");
-
 // Trust Render’s proxy (you already have this)
 app.set("trust proxy", 1);
 
