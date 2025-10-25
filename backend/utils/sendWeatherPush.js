@@ -85,9 +85,8 @@ async function sendWeatherPush() {
       sentCount++;
     } catch (err) {
       if (err.statusCode === 404 || err.statusCode === 410) {
-        await Subscription.deleteOne({ endpoint: s.endpoint });
-        await LastCity.deleteOne({ endpoint: s.endpoint });
-        console.log('🗑️ Deleted expired subscription', tail);
+        await Subscription.deleteOne({ endpoint: entry.endpoint });
+        await LastCity.deleteOne({ endpoint: entry.endpoint });
         removedCount++;
       } else if (!quiet) {
         console.error(`⚠️ Push error: ${err.message.slice(0, 80)}`);
