@@ -63,6 +63,13 @@ const limiter = rateLimit({
 });
 app.use("/api",limiter);
 
+const cronLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,  
+  max: 100,                     
+  standardHeaders: true,
+});
+app.use("/trigger-weather-push", cronLimiter);
+
 app.use('/api/weather', weatherRoutes);
 app.use('/api/push', pushRoutes);
 
