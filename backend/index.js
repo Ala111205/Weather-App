@@ -67,7 +67,7 @@ app.use("/api", generalLimiter);
 // Separate, relaxed limiter for the cron endpoint
 const cronLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 2,
+  max: 10,
   standardHeaders: true,
 });
 app.use("/trigger-weather-push", cronLimiter);
