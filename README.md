@@ -1,7 +1,8 @@
 **🌦️ Advanced Weather PWA**
 
       A professional-grade Progressive Web App (PWA) delivering real-time weather updates, air quality data, city comparisons, and more — with offline support.
-Built with a modular full-stack architecture, featuring push notifications, service worker caching, hourly background alerts, and a smooth, interactive user interface.
+      
+      Built with a modular full-stack architecture, featuring push notifications, service worker caching, hourly background alerts, and a smooth, interactive user interface.
 
 **Live Demok** 👉 https://weather-app-two-red-discc085r3.vercel.app/
 
@@ -50,7 +51,7 @@ Built with a modular full-stack architecture, featuring push notifications, serv
 ⚙️ **Automated Weather Push via Cron Job**
 
       To keep users updated 24/7, the backend integrates with cron-job.org
- to automatically trigger weather notifications hourly — even when the frontend is closed.
+      to automatically trigger weather notifications hourly — even when the frontend is closed.
 
 💾 **Installable PWA**
 
