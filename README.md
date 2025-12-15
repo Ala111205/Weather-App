@@ -50,8 +50,7 @@
 
 ⚙️ **Automated Weather Push via Cron Job**
 
-      To keep users updated 24/7, the backend integrates with cron-job.org
-      to automatically trigger weather notifications hourly — even when the frontend is closed.
+      To keep users updated 24/7, the backend integrates with cron-job.org to automatically trigger weather notifications hourly — even when the frontend is closed.
 
 💾 **Installable PWA**
 
