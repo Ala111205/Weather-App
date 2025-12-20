@@ -1,56 +1,56 @@
 **🌦️ Advanced Weather PWA**
 
       A professional-grade Progressive Web App (PWA) delivering real-time weather updates, air quality data, city comparisons, and more — with offline support.
-Built with a modular full-stack architecture, featuring push notifications, service worker caching, hourly background alerts, and a smooth, interactive user interface.
+      
+      Built with a modular full-stack architecture, featuring push notifications, service worker caching, hourly background alerts, and a smooth, interactive user interface.
 
-**Repository Link** 👉 https://weather-app-two-red-discc085r3.vercel.app/
+**Live Demok** 👉 https://weather-app-two-red-discc085r3.vercel.app/
 
 **🚀 Features:-**
 
 **🔹 Core Weather Features**
 
-     🌍 Search weather by city name or geolocation coordinates (lat, lon)
+           🌍 Search weather by city name or geolocation coordinates (lat, lon)
 
-     🌡️ Display current weather, forecast, and air quality index (AQI)
+           🌡️ Display current weather, forecast, and air quality index (AQI)
 
-     📈 Temperature trends with dynamic Chart.js graphs
+           📈 Temperature trends with dynamic Chart.js graphs
 
-     🗺️ Interactive map display using Leaflet.js
+           🗺️ Interactive map display using Leaflet.js
      
-     🏙️ Compare multiple cities side-by-side
+           🏙️ Compare multiple cities side-by-side
      
-     🔹 Advanced & Hard-Level Features
+**🔹 Advanced & Hard-Level Features**
      
-     ⚙️ Modularized project structure (UI, API, utils, map, chart separated)
+           ⚙️ Modularized project structure (UI, API, utils, map, chart separated)
      
-     🔐 Backend proxy server for secure API key handling
+           🔐 Backend proxy server for secure API key handling
      
-     🧠 Error handling & retry logic for network failures
+           🧠 Error handling & retry logic for network failures
      
-     📦 Caching & offline mode using Service Worker
+           📦 Caching & offline mode using Service Worker
      
-     🌓 Dark / Light themes with one-click toggle
+           🌓 Dark / Light themes with one-click toggle
      
-     🧭 Geolocation support to detect user’s current city
+           🧭 Geolocation support to detect user’s current city
      
-     🎨 GSAP animations for smooth UI transitions
+           🎨 GSAP animations for smooth UI transitions
      
-     📊 Dynamic temperature trend charts
+           📊 Dynamic temperature trend charts
      
-     📅 Persistent city storage (recent searches + compare list)
+           📅 Persistent city storage (recent searches + compare list)
 
 🔔 **Push Notifications**
 
-      Instant weather alerts from backend (via Web Push)
+            Instant weather alerts from backend (via Web Push)
       
-      Hourly background notifications, even when the app is closed
+            Hourly background notifications, even when the app is closed
 
-       ⚠️ Users can manually turn notifications on or off directly from the notification icon.
+            ⚠️ Users can manually turn notifications on or off directly from the notification icon.
 
 ⚙️ **Automated Weather Push via Cron Job**
 
-      To keep users updated 24/7, the backend integrates with cron-job.org
- to automatically trigger weather notifications hourly — even when the frontend is closed.
+      To keep users updated 24/7, the backend integrates with cron-job.org to automatically trigger weather notifications hourly — even when the frontend is closed.
 
 💾 **Installable PWA**
 
