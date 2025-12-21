@@ -52,14 +52,14 @@ export async function pushCityWeather(cityData) {
     const reg = await navigator.serviceWorker.ready;
     const sub = await reg.pushManager.getSubscription();
 
-    // Only proceed if a subscription exists
+    // Only proceed if subscription exists
     if (!sub) {
       console.warn('⚠️ No push subscription found.');
       return;
     }
 
-    // Call the new /search endpoint for manual push
-    await fetch(`${BASE_URL}/api/push/search`, {
+    // Send the manual weather push
+    const res = await fetch(`${BASE_URL}/api/push/search`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -68,7 +68,9 @@ export async function pushCityWeather(cityData) {
       })
     });
 
-    console.log(`📩 Push requested for ${name}`);
+    const data = await res.json();
+    if (!data.success) console.warn('⚠️ Push failed for', name);
+
   } catch (err) {
     console.error('Push failed:', err);
   }

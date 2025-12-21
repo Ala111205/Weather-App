@@ -1,59 +1,44 @@
-const CACHE_NAME = 'weather-pwa-v9'; 
-const STATIC_ASSETS = [
-  '/', '/index.html', '/css/style.css', '/js/app.js', '/manifest.json'
-];
+const CACHE_NAME = 'weather-pwa-v10';
+const STATIC_ASSETS = ['/', '/index.html', '/css/style.css', '/js/app.js', '/manifest.json'];
 
-// Install event — cache static assets
+// Install: cache static assets
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS))
   );
-  console.log('🛠 SW install event');
   self.skipWaiting();
 });
 
-// Activate event — claim clients
+// Activate: claim clients and clear old notifications
 self.addEventListener('activate', event => {
-  event.waitUntil(
-    (async () => {
-      const clientsList = await clients.matchAll({ includeUncontrolled: true });
-      console.log(`🌐 Clients controlled: ${clientsList.length}`);
-      // Clear any stale notifications on activate
-      const existing = await self.registration.getNotifications();
-      for (const n of existing) n.close();
-      await self.clients.claim();
-    })()
-  )
-  console.log('⚡ SW activate event', CACHE_NAME);
+  event.waitUntil((async () => {
+    const existing = await self.registration.getNotifications();
+    for (const n of existing) n.close();
+    await self.clients.claim();
+  })());
 });
 
-// Fetch event — cache strategy
+// Fetch: network-first for APIs, cache-first for static assets
 self.addEventListener('fetch', event => {
-  const request = event.request;
-  const url = new URL(request.url);
+  const req = event.request;
+  const url = new URL(req.url);
 
-  if (request.method !== 'GET') return;
+  if (req.method !== 'GET') return;
 
   if (url.pathname.startsWith('/api/')) {
-    event.respondWith(networkFirst(request));
-    return;
+    event.respondWith(networkFirst(req));
+  } else {
+    event.respondWith(caches.match(req).then(cached => cached || fetch(req)));
   }
-
-  event.respondWith(
-    caches.match(request).then(cached => cached || fetch(request))
-  );
 });
 
-// Network-first function for APIs
 async function networkFirst(req) {
   const cache = await caches.open(CACHE_NAME);
   try {
     const resp = await fetch(req);
-    if (req.method === 'GET' && resp && resp.ok) {
-      cache.put(req, resp.clone());
-    }
+    if (resp && resp.ok) cache.put(req, resp.clone());
     return resp;
-  } catch (err) {
+  } catch {
     const cached = await cache.match(req);
     return cached || new Response(JSON.stringify({ error: 'offline' }), {
       status: 503,
@@ -62,64 +47,55 @@ async function networkFirst(req) {
   }
 }
 
-let lastPushTime = 0;
+// Push rate-limiting: track last push per city per endpoint
+const lastPushMap = new Map();
+const MIN_PUSH_INTERVAL = 10 * 60 * 1000; // 10 min
 
-// Push notifications listener
 self.addEventListener('push', event => {
-  const now = Date.now();
-  if (now - lastPushTime < 2000) {
-    console.log('⏱️ Duplicate push suppressed (timing)');
-    return;
-  }
-  lastPushTime = now;
-
-  console.log('🔥 Push received at', new Date().toISOString());
-  if (!event.data) return; 
+  if (!event.data) return;
 
   let payload = {};
   try {
-    payload = event.data.json()?.data || {}; 
+    payload = event.data.json()?.data || {};
   } catch {
-    console.warn('⚠️ Malformed push event data');
+    console.warn('⚠️ Malformed push data');
     return;
   }
 
-  // Defaults
-  const id = payload.id || `${(payload.title||'weather')}-${(payload.body||'').slice(0,40)}`;
+  const id = payload.id || `${payload.title || 'weather'}-${(payload.body || '').slice(0, 40)}`;
+  const city = payload.title?.replace(/^🌤 Weather in /, '') || '';
+  const now = Date.now();
+
+  // Suppress duplicate notifications per city
+  const last = lastPushMap.get(city);
+  if (last && now - last < MIN_PUSH_INTERVAL) {
+    console.log(`⏱ Duplicate push for "${city}" suppressed`);
+    return;
+  }
+  lastPushMap.set(city, now);
+
   const title = payload.title || 'Weather Update';
   const body = payload.body || 'Click to open app';
   const icon = payload.icon || `${self.registration.scope}assets/icons/icon-192.png`;
   const badge = payload.badge || icon;
 
-  console.log('🔥 Push received:', id);
-  
-  // Use the id as tag
-  const tag = id;
-
   event.waitUntil((async () => {
-    // Check for existing notifications with same tag
-    const existing = await self.registration.getNotifications({ tag });
-    if (existing && existing.length > 0) {
-      console.log('🚫 Duplicate push ignored:', tag);
-      return;
-    }
+    const existing = await self.registration.getNotifications({ tag: id });
+    if (existing && existing.length) return; // skip duplicates
 
-    // Show notification (tag prevents duplicates)
     await self.registration.showNotification(title, {
       body,
       icon,
       badge,
-      tag,
+      tag: id,
       renotify: false,
-      data: { id, timestamp: Date.now() }
+      data: { id, timestamp: now }
     });
-    console.log('✅ Notification shown:', tag);
   })());
 });
 
-// Notification click
+// Notification click: open PWA
 self.addEventListener('notificationclick', event => {
-  console.log('🖱 Notification clicked');
   event.notification.close();
   event.waitUntil(clients.openWindow('/'));
 });

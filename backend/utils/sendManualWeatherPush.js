@@ -11,15 +11,11 @@ const getBaseURL = () =>
     ? process.env.FRONTEND_PROD_URL
     : process.env.FRONTEND_BASE_URL;
 
-// Helper: fetch weather with retries
+// Fetch weather safely with retries
 async function fetchWeather(city, retries = 2) {
   try {
     const res = await axios.get(BASE, {
-      params: {
-        q: city,
-        units: 'metric',
-        appid: process.env.OPENWEATHER_API_KEY
-      },
+      params: { q: city, units: 'metric', appid: process.env.OPENWEATHER_API_KEY },
       timeout: 4000
     });
     return {
@@ -37,21 +33,25 @@ async function fetchWeather(city, retries = 2) {
 }
 
 async function sendManualWeatherPush(city, targetEndpoint = null) {
-  if (!city) return;
+  if (!city) return { sent: 0 };
 
   const weather = await fetchWeather(city);
-  if (!weather) return;
+  if (!weather) return { sent: 0 };
 
   const subs = await Subscription.find(targetEndpoint ? { endpoint: targetEndpoint } : {});
-  if (!subs.length) return;
+  if (!subs.length) return { sent: 0 };
 
   const baseURL = getBaseURL();
   let sent = 0;
 
   for (const s of subs) {
-    // Prevent duplicate notifications too soon
     const last = await LastCity.findOne({ endpoint: s.endpoint });
-    if (last && Date.now() - new Date(last.updatedAt).getTime() < MIN_PUSH_INTERVAL) continue;
+
+    // Skip if same city pushed too recently
+    if (last && last.name === city && Date.now() - new Date(last.updatedAt).getTime() < MIN_PUSH_INTERVAL) {
+      console.log(`⏱️ Skipping push for "${city}" to ${s.endpoint.slice(-12)} (too soon)`);
+      continue;
+    }
 
     const tail = s.endpoint.slice(-12).replace(/[^a-z0-9]/gi, '');
     const notificationId = `weather-${city.replace(/\s+/g, '_')}-${tail}`;
@@ -70,10 +70,10 @@ async function sendManualWeatherPush(city, targetEndpoint = null) {
       await webpush.sendNotification(s, payload);
       sent++;
 
-      // Update last push timestamp
+      // Update last push info
       await LastCity.findOneAndUpdate(
         { endpoint: s.endpoint },
-        { name: city, updatedAt: new Date() },
+        { name: city, updatedAt: new Date(), lastData: { temp: weather.temp, desc: weather.description } },
         { upsert: true }
       );
     } catch (err) {
@@ -88,7 +88,7 @@ async function sendManualWeatherPush(city, targetEndpoint = null) {
   }
 
   console.log(`📩 Manual weather push for "${city}" sent to ${sent} subscriber(s)`);
-  return sent;
+  return { sent };
 }
 
 module.exports = sendManualWeatherPush;
