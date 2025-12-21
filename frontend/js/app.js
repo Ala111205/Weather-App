@@ -158,43 +158,24 @@ async function updateUI(subscribed) {
 
 // ==================== SUBSCRIBE ====================
 window.subscribeUser = async () => {
-  if (!API.isPushSupported()) {
-    console.warn('⚠️ Push not supported');
-    return false;
-  }
-
+  if (!API.isPushSupported()) return false;
   try {
-    const reg = window.swRegistration || (await API.initServiceWorker());
+    const reg = window.swRegistration || await API.initServiceWorker();
     if (!reg) return false;
 
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') return false;
 
     let sub = await reg.pushManager.getSubscription();
-
-    if (!sub) {
-      // New subscription
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: API.urlBase64ToUint8Array(API.VAPID_KEY)
-      });
-      await API.subscribePush(sub);
-      console.log('✅ Push subscription created & synced with backend');
-    } else {
-      // Already exists — verify backend
+    if (!sub) sub = await API.createAndSendSubscription(reg);
+    else {
       const check = await API.checkSubscription(sub.endpoint);
-      if (!check.exists) {
-        await API.subscribePush(sub);
-        console.log('🔁 Existing subscription synced with backend');
-      } else {
-        console.log('✅ Already subscribed');
-      }
+      if (!check.exists) sub = await API.createAndSendSubscription(reg);
     }
 
     await updateUI(true);
     showToast('Notifications enabled');
     return true;
-
   } catch (err) {
     console.error('❌ Failed to subscribe:', err);
     return false;
@@ -204,79 +185,46 @@ window.subscribeUser = async () => {
 // ==================== UNSUBSCRIBE ====================
 window.unsubscribeUser = async () => {
   if (!API.isPushSupported()) return;
-
   try {
-    const reg = window.swRegistration || (await API.initServiceWorker());
+    const reg = window.swRegistration || await API.initServiceWorker();
     if (!reg) return;
 
     const sub = await reg.pushManager.getSubscription();
     if (!sub) {
-      console.warn('⚠️ No active subscription to unsubscribe');
       await updateUI(false);
       return;
     }
 
     await API.unsubscribePush(sub);
     await sub.unsubscribe();
-
-    // Close notifications
     if (reg.active) reg.active.postMessage({ type: 'UNSUBSCRIBE' });
 
     await updateUI(false);
     showToast('Notifications disabled');
-    console.log('🗑️ Push notifications unsubscribed');
-
   } catch (err) {
     console.warn('❌ Failed to unsubscribe:', err);
   }
 };
 
-// ==================== INITIAL UI STATE ====================
+// ==================== INITIAL LOAD ====================
 (async () => {
   if (!API.isPushSupported()) return;
 
-  // Initialize Service Worker if not already
-  const reg = window.swRegistration || (await API.initServiceWorker());
+  const reg = window.swRegistration || await API.initServiceWorker();
   if (!reg) return;
-
   window.swRegistration = reg;
 
-  try {
-    const sub = await reg.pushManager.getSubscription();
+  const sub = await reg.pushManager.getSubscription();
+  if (!sub) return updateUI(false);
 
-    if (!sub) {
-      // No subscription exists, wait for user action
-      if (subscribeBtn) subscribeBtn.style.display = 'inline-block';
-      if (unsubscribeBtn) unsubscribeBtn.style.display = 'none';
-      console.log('📩 No push subscription — waiting for user click');
-      return;
-    }
-
-    // Check backend if subscription exists
-    const check = await API.checkSubscription(sub.endpoint);
-
-    if (check.exists) {
-      // Already subscribed — update UI only
-      if (subscribeBtn) subscribeBtn.style.display = 'none';
-      if (unsubscribeBtn) subscribeBtn.style.display = 'inline-block';
-      console.log('✅ Already subscribed (backend verified)');
-    } else {
-      // Stale subscription — silently remove, let user resubscribe
-      await sub.unsubscribe();
-      if (subscribeBtn) subscribeBtn.style.display = 'inline-block';
-      if (unsubscribeBtn) unsubscribeBtn.style.display = 'none';
-      console.log('⚠️ Stale subscription removed — waiting for user click');
-    }
-
-  } catch (err) {
-    console.warn('❌ Subscription check failed (ignored):', err.message);
-    // Safe default UI
-    if (subscribeBtn) subscribeBtn.style.display = 'inline-block';
-    if (unsubscribeBtn) unsubscribeBtn.style.display = 'none';
+  const check = await API.checkSubscription(sub.endpoint);
+  if (check.exists) updateUI(true);
+  else {
+    await sub.unsubscribe();
+    updateUI(false);
   }
 })();
 
-
-// ===== BUTTON EVENT LISTENERS =====
+// ==================== BUTTON EVENTS ====================
 if (subscribeBtn) subscribeBtn.addEventListener('click', window.subscribeUser);
 if (unsubscribeBtn) unsubscribeBtn.addEventListener('click', window.unsubscribeUser);

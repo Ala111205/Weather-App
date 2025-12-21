@@ -46,7 +46,7 @@ async function networkFirst(req) {
   }
 }
 
-// Push notification handling with deduplication
+// Push notification handling (unique tag every time)
 self.addEventListener('push', event => {
   if (!event.data) return;
 
@@ -58,7 +58,7 @@ self.addEventListener('push', event => {
   }
 
   const data = payload.data || payload;
-  const id = `${data.id || 'weather'}-${Date.now()}`; // unique every time
+  const id = `${data.id || 'weather'}-${Date.now()}`; // unique tag each time
   const title = data.title || 'Weather Update';
   const body = data.body || 'Tap to open app';
 
@@ -67,25 +67,25 @@ self.addEventListener('push', event => {
       body,
       icon: data.icon || '/assets/icons/icon-192.png',
       badge: data.badge || '/assets/icons/icon-192.png',
-      tag: id,        // unique, so each push shows
+      tag: id,        // unique tag ensures all notifications show
       renotify: false,
       data: { id, ts: Date.now() }
     })
   );
 });
 
-// Notification click opens app
+// Notification click opens or focuses the app
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  event.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true })
-    .then(windows => {
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windows => {
       if (windows.length) return windows[0].focus();
       return clients.openWindow('/');
     })
   );
 });
 
-// Message listener (unsubscribe / clear notifications)
+// Message listener: clear notifications on unsubscribe
 self.addEventListener('message', event => {
   if (event.data?.type === 'UNSUBSCRIBE') {
     self.registration.getNotifications().then(notifs => notifs.forEach(n => n.close()));
