@@ -167,7 +167,7 @@ UI.updateRecentSearches(recent);
 (async () => {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
 
-  // Check if SW already registered
+  // 1️⃣ Register SW if not already
   const regs = await navigator.serviceWorker.getRegistrations();
   let reg = regs.find(r => r.active);
 
@@ -185,86 +185,99 @@ UI.updateRecentSearches(recent);
   const vapidKey = 'BCkItBSMU1gfKoiNDaKLZj9xvKGPFyYn9dqZ29_wNunc4_z-ITd9xhvxXU8fXTN0JQbb8b2YujBCCPi2M05m9co';
   await API.verifyAndRestoreSubscription(vapidKey);
 
-  // Get existing subscription
-  let sub = await reg.pushManager.getSubscription();
+  // 2️⃣ Get SW subscription
+  const sub = await reg.pushManager.getSubscription();
 
   if (!sub) {
-    console.log('📩 Requesting notification permission...');
-    const permission = await Notification.requestPermission();
-
-    if (permission === 'granted') {
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: API.urlBase64ToUint8Array(
-          "BCkItBSMU1gfKoiNDaKLZj9xvKGPFyYn9dqZ29_wNunc4_z-ITd9xhvxXU8fXTN0JQbb8b2YujBCCPi2M05m9co"
-        )
-      });
-      await API.subscribePush(sub);
-      console.log('🔔 Push subscription successful');
-    } else {
-      console.warn('🚫 Notifications blocked by user.');
-    }
-
+    // User not subscribed yet
     subscribeBtn.style.display = "inline-block";
     unsubscribeBtn.style.display = "none";
-  } else {
-    console.log('✅ Already subscribed');
+    console.log('📩 No active subscription yet');
+    return;
+  }
 
-    subscribeBtn.style.display = "none";
-    unsubscribeBtn.style.display = "inline-block";
+  // 3️⃣ Confirm subscription exists on backend
+  try {
+    const checkResp = await API.checkSubscription(sub.endpoint);
+    if (checkResp.exists) {
+      subscribeBtn.style.display = "none";
+      unsubscribeBtn.style.display = "inline-block";
+      console.log('✅ Subscribed and verified with backend');
+    } else {
+      // Subscription invalid on backend → clean up SW
+      await sub.unsubscribe();
+      subscribeBtn.style.display = "inline-block";
+      unsubscribeBtn.style.display = "none";
+      console.log('⚠️ Subscription not found on backend, reset SW');
+    }
+  } catch (err) {
+    console.error('❌ Error checking backend subscription:', err);
+    // Fallback to UI safe state
+    subscribeBtn.style.display = "inline-block";
+    unsubscribeBtn.style.display = "none";
   }
 })();
 
 window.subscribeUser = async () => {
   try {
     const reg = window.swRegistration || (await navigator.serviceWorker.ready);
-    const existingSub = await reg.pushManager.getSubscription();
+    let sub = await reg.pushManager.getSubscription();
+    if (sub) return alert('Already subscribed.');
 
-    if (existingSub) {
-      alert('You are already subscribed to notifications.');
-      return;
-    }
-
-    console.log('📩 Requesting notification permission...');
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') {
-      alert('Please allow notifications in your browser settings.');
+      alert('Notifications blocked.');
       return;
     }
 
-    const newSub = await reg.pushManager.subscribe({
+    sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: API.urlBase64ToUint8Array(
         'BCkItBSMU1gfKoiNDaKLZj9xvKGPFyYn9dqZ29_wNunc4_z-ITd9xhvxXU8fXTN0JQbb8b2YujBCCPi2M05m9co'
       )
     });
 
-    await API.subscribePush(newSub);
+    const resp = await API.subscribePush(sub);
+    if (!resp.ok) throw new Error('Backend subscription failed');
+
+    // Only now update UI
+    subscribeBtn.style.display = "none";
+    unsubscribeBtn.style.display = "inline-block";
     console.log('✅ Notifications turned ON');
-    alert('You have subscribed to notifications.');
+    alert('Subscribed successfully.');
 
   } catch (err) {
     console.error('❌ Failed to subscribe:', err);
-    alert('Failed to enable notifications.');
+    alert('Failed to turn on notifications.');
   }
 };
 
 window.unsubscribeUser = async () => {
-  const reg = window.swRegistration || (await navigator.serviceWorker.ready);
-  const sub = await reg.pushManager.getSubscription();
+  try {
+    const reg = window.swRegistration || (await navigator.serviceWorker.ready);
+    const sub = await reg.pushManager.getSubscription();
 
-  if (sub) {
-    await API.unsubscribePush(sub);
-    const unsubscribed = await sub.unsubscribe();
-
-    if (unsubscribed) {
-      console.log('🗑️ Notifications turned OFF');
-      alert('Notifications have been turned off.');
-      if (reg.active) reg.active.postMessage({ type: 'UNSUBSCRIBE' });
+    if (!sub) {
+      alert('No active subscription found.');
+      return;
     }
-  } else {
-    console.log('⚠️ No active subscription found');
-    alert('You are not subscribed to notifications.');
+
+    const resp = await API.unsubscribePush(sub);
+    if (!resp.ok) throw new Error('Backend unsubscribe failed');
+
+    const unsubscribed = await sub.unsubscribe();
+    if (!unsubscribed) throw new Error('Failed to unsubscribe from SW');
+
+    // Only now update UI
+    subscribeBtn.style.display = "inline-block";
+    unsubscribeBtn.style.display = "none";
+    console.log('🗑️ Notifications turned OFF');
+    alert('Notifications have been turned off.');
+
+    if (reg.active) reg.active.postMessage({ type: 'UNSUBSCRIBE' });
+  } catch (err) {
+    console.error('❌ Failed to unsubscribe:', err);
+    alert('Failed to turn off notifications.');
   }
 };
 
