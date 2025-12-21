@@ -1,6 +1,6 @@
 import * as API from './api.js';
 import * as UI from './ui.js';
-import { el, parseLatLonInput, alert, formatTemp } from './utils.js';
+import { el, parseLatLonInput, showToast, formatTemp } from './utils.js';
 import { initMap, showLocation } from './map.js';
 import { renderTempChart } from './charts.js';
 
@@ -20,7 +20,7 @@ const unsubscribeBtn = el('unsubscribeBtn');
 
 async function performSearch(term) {
   try {
-    alert('Fetching weather...');
+    showToast('Fetching weather...');
     let coords = parseLatLonInput(term);
     let current = coords ? await API.getCurrentByCoords(coords.lat, coords.lon, isCelsius?'metric':'imperial')
                          : await API.getCurrentByCity(term, isCelsius?'metric':'imperial');
@@ -47,10 +47,10 @@ async function performSearch(term) {
     // Push notification for this city
     API.pushCityWeather(current);
 
-    alert('Updated');
+    showToast('Updated');
   } catch (err) {
     console.error(err);
-    alert(err.message || 'Failed to load');
+    showToast(err.message || 'Failed to load');
   }
 }
 
@@ -58,14 +58,14 @@ async function performSearch(term) {
 
 searchBtn.addEventListener('click', ()=> {
   const q = cityInput.value.trim();
-  if (!q) return alert('Enter a city or lat,lon');
+  if (!q) return showToast('Enter a city or lat,lon');
   performSearch(q);
 });
 
 compareBtn.addEventListener('click', () => {
   compareList.style.border = '5px double'
   const city = cityInput.value.trim();
-  if (!city) return alert('Enter a city name to compare');
+  if (!city) return showToast('Enter a city name to compare');
   addCityToCompare(city);
 });
 
@@ -85,8 +85,8 @@ geoBtn.addEventListener('click', ()=> {
     navigator.geolocation.getCurrentPosition(async pos=>{
       const { latitude, longitude } = pos.coords;
       performSearch(`${latitude},${longitude}`);
-    }, err => alert('Geolocation denied'));
-  } else alert('Geolocation not supported');
+    }, err => showToast('Geolocation denied'));
+  } else showToast('Geolocation not supported');
 });
 
 themeToggle.addEventListener('click', ()=> {
@@ -144,7 +144,7 @@ async function addCityToCompare(city) {
     localStorage.setItem('compareCities', JSON.stringify(compareCities));
 
   } catch (err) {
-    alert('Could not fetch data for ' + city);
+    showToast('Could not fetch data for ' + city);
   }
 }
 
