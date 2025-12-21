@@ -167,54 +167,65 @@ UI.updateRecentSearches(recent);
 (async () => {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
 
-  // 1️⃣ Register SW if not already
-  const regs = await navigator.serviceWorker.getRegistrations();
-  let reg = regs.find(r => r.active);
-
-  if (!reg) {
-    console.log('🛠 Registering new Service Worker...');
-    reg = await navigator.serviceWorker.register('/sw.js');
-    await navigator.serviceWorker.ready;
-    console.log('⚡ Service Worker activated');
-  } else {
-    console.log('✅ Service Worker already registered');
-  }
-
-  window.swRegistration = reg;
-
-  const vapidKey = 'BCkItBSMU1gfKoiNDaKLZj9xvKGPFyYn9dqZ29_wNunc4_z-ITd9xhvxXU8fXTN0JQbb8b2YujBCCPi2M05m9co';
-  await API.verifyAndRestoreSubscription(vapidKey);
-
-  // 2️⃣ Get SW subscription
-  const sub = await reg.pushManager.getSubscription();
-
-  if (!sub) {
-    // User not subscribed yet
-    subscribeBtn.style.display = "inline-block";
-    unsubscribeBtn.style.display = "none";
-    console.log('📩 No active subscription yet');
-    return;
-  }
-
-  // 3️⃣ Confirm subscription exists on backend
   try {
-    const checkResp = await API.checkSubscription(sub.endpoint);
-    if (checkResp.exists) {
-      subscribeBtn.style.display = "none";
-      unsubscribeBtn.style.display = "inline-block";
-      console.log('✅ Subscribed and verified with backend');
+    // Get service worker registration or register a new one
+    const regs = await navigator.serviceWorker.getRegistrations();
+    let reg = regs.find(r => r.active);
+    if (!reg) {
+      console.log('🛠 Registering new Service Worker...');
+      reg = await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.ready;
+      console.log('⚡ Service Worker activated');
     } else {
-      // Subscription invalid on backend → clean up SW
-      await sub.unsubscribe();
-      subscribeBtn.style.display = "inline-block";
-      unsubscribeBtn.style.display = "none";
-      console.log('⚠️ Subscription not found on backend, reset SW');
+      console.log('✅ Service Worker already registered');
     }
+    window.swRegistration = reg;
+
+    // VAPID key
+    const vapidKey = 'BCkItBSMU1gfKoiNDaKLZj9xvKGPFyYn9dqZ29_wNunc4_z-ITd9xhvxXU8fXTN0JQbb8b2YujBCCPi2M05m9co';
+    await API.verifyAndRestoreSubscription(vapidKey);
+
+    // Get existing subscription
+    let sub = await reg.pushManager.getSubscription();
+
+    if (!sub) {
+      console.log('📩 Requesting notification permission...');
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: API.urlBase64ToUint8Array(vapidKey)
+        });
+        await API.subscribePush(sub);
+        console.log('🔔 Push subscription successful');
+
+        subscribeBtn.style.display = "inline-block";
+        unsubscribeBtn.style.display = "none";
+      } else {
+        console.warn('🚫 Notifications blocked by user.');
+      }
+    } else {
+      // Check backend subscription
+      try {
+        const checkResp = await API.checkSubscription(sub.endpoint);
+        if (checkResp.exists) {
+          subscribeBtn.style.display = "none";
+          unsubscribeBtn.style.display = "inline-block";
+          console.log('✅ Subscribed and verified with backend');
+        } else {
+          // Remove stale SW subscription
+          await sub.unsubscribe();
+          subscribeBtn.style.display = "inline-block";
+          unsubscribeBtn.style.display = "none";
+          console.log('⚠️ Subscription not found on backend, reset SW');
+        }
+      } catch (err) {
+        console.error('❌ Error checking backend subscription:', err);
+      }
+    }
+
   } catch (err) {
-    console.error('❌ Error checking backend subscription:', err);
-    // Fallback to UI safe state
-    subscribeBtn.style.display = "inline-block";
-    unsubscribeBtn.style.display = "none";
+    console.error('❌ Service Worker setup failed:', err);
   }
 })();
 

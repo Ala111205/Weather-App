@@ -76,6 +76,20 @@ export async function pushCityWeather(cityData) {
   }
 }
 
+export async function checkSubscription(endpoint) {
+  try {
+    const res = await fetch(`${BASE_URL}/api/push/check-subscription`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endpoint })
+    });
+    return await res.json(); // returns { exists: true/false }
+  } catch (err) {
+    console.error('❌ checkSubscription API failed:', err);
+    return { exists: false };
+  }
+}
+
 export async function subscribePush(subscription) {
   const res = await fetch(`${BASE_URL}/api/push/subscribe`, { method:'POST', body: JSON.stringify(subscription), headers:{'Content-Type':'application/json'}});
   return res.json();
