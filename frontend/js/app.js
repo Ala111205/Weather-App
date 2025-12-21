@@ -96,11 +96,14 @@ themeToggle.addEventListener('click', ()=> {
 subscribeBtn.addEventListener('click', async () => {
   const success = await window.subscribeUser();
 
-  if (success) {
-    unsubscribeBtn.style.display = "inline-block";
-    subscribeBtn.style.display = "none";
-    showToast('Notifications enabled');
+  if (!success) {
+    showToast('Notification permission blocked');
+    return;
   }
+
+  subscribeBtn.style.display = "none";
+  unsubscribeBtn.style.display = "inline-block";
+  showToast('Notifications enabled');
 });
 
 if (unsubscribeBtn) {
@@ -169,100 +172,66 @@ UI.updateRecentSearches(recent);
 (async () => {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
 
-  try {
-    // Get service worker registration or register a new one
-    const regs = await navigator.serviceWorker.getRegistrations();
-    let reg = regs.find(r => r.active);
-    if (!reg) {
-      console.log('🛠 Registering new Service Worker...');
-      reg = await navigator.serviceWorker.register('/sw.js');
-      await navigator.serviceWorker.ready;
-      console.log('⚡ Service Worker activated');
-    } else {
-      console.log('✅ Service Worker already registered');
-    }
-    window.swRegistration = reg;
+  const reg = await navigator.serviceWorker.register('/sw.js');
+  await navigator.serviceWorker.ready;
+  window.swRegistration = reg;
 
-    // VAPID key
-    const vapidKey = 'BCkItBSMU1gfKoiNDaKLZj9xvKGPFyYn9dqZ29_wNunc4_z-ITd9xhvxXU8fXTN0JQbb8b2YujBCCPi2M05m9co';
-    await API.verifyAndRestoreSubscription(vapidKey);
+  const sub = await reg.pushManager.getSubscription();
 
-    // Get existing subscription
-    let sub = await reg.pushManager.getSubscription();
+  if (!sub) {
+    // No browser subscription → show Subscribe
+    subscribeBtn.style.display = "inline-block";
+    unsubscribeBtn.style.display = "none";
+    return;
+  }
 
-    if (!sub) {
-      console.log('📩 Requesting notification permission...');
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: API.urlBase64ToUint8Array(vapidKey)
-        });
-        await API.subscribePush(sub);
-        console.log('🔔 Push subscription successful');
+  // Browser has subscription → verify backend
+  const check = await API.checkSubscription(sub.endpoint);
 
-        subscribeBtn.style.display = "inline-block";
-        unsubscribeBtn.style.display = "none";
-      } else {
-        console.warn('🚫 Notifications blocked by user.');
-      }
-    } else {
-      // Check backend subscription
-      try {
-        const checkResp = await API.checkSubscription(sub.endpoint);
-        if (checkResp.exists) {
-          subscribeBtn.style.display = "none";
-          unsubscribeBtn.style.display = "inline-block";
-          console.log('✅ Subscribed and verified with backend');
-        } else {
-          // Remove stale SW subscription
-          await sub.unsubscribe();
-          subscribeBtn.style.display = "inline-block";
-          unsubscribeBtn.style.display = "none";
-          console.log('⚠️ Subscription not found on backend, reset SW');
-        }
-      } catch (err) {
-        console.error('❌ Error checking backend subscription:', err);
-      }
-    }
-
-  } catch (err) {
-    console.error('❌ Service Worker setup failed:', err);
+  if (check.exists) {
+    subscribeBtn.style.display = "none";
+    unsubscribeBtn.style.display = "inline-block";
+  } else {
+    // Backend lost it → clean browser
+    await sub.unsubscribe();
+    subscribeBtn.style.display = "inline-block";
+    unsubscribeBtn.style.display = "none";
   }
 })();
 
 window.subscribeUser = async () => {
   try {
-    if (!isPushSupported()) {
-      console.warn('Push not supported on this device');
-      return false; // 🔴 silent fail
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      return false;
     }
 
-    const reg = window.swRegistration || (await navigator.serviceWorker.ready);
+    const reg = window.swRegistration || await navigator.serviceWorker.ready;
+
+    // 🔒 If already subscribed, don’t resubscribe
+    const existing = await reg.pushManager.getSubscription();
+    if (existing) {
+      console.log('Already subscribed');
+      return true;
+    }
 
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') {
-      return false; // user denied
+      return false;
     }
 
     const sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: API.urlBase64ToUint8Array(
-        'BCkItBSMU1gfKoiNDaKLZj9xvKGPFyYn9dqZ29_wNunc4_z-ITd9xhvxXU8fXTN0JQbb8b2YujBCCPi2M05m9co'
-      )
+      applicationServerKey: API.urlBase64ToUint8Array(VAPID_KEY)
     });
 
     await API.subscribePush(sub);
-
-    console.log('✅ Push subscribed');
     return true;
 
   } catch (err) {
-    console.warn('Push subscribe failed (ignored):', err.message);
-    return false; // 🔴 NO ALERT
+    console.warn('Subscribe failed (mobile-safe):', err.message);
+    return false;
   }
 };
-
 window.unsubscribeUser = async () => {
   try {
     // Push not supported → silently ignore
