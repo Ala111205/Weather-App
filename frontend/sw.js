@@ -66,14 +66,6 @@ self.addEventListener('push', event => {
   const city = payload.title?.replace(/^🌤 Weather in /, '') || '';
   const now = Date.now();
 
-  // Suppress duplicate notifications per city
-  const last = lastPushMap.get(city);
-  if (last && now - last < MIN_PUSH_INTERVAL) {
-    console.log(`⏱ Duplicate push for "${city}" suppressed`);
-    return;
-  }
-  lastPushMap.set(city, now);
-
   const title = payload.title || 'Weather Update';
   const body = payload.body || 'Click to open app';
   const icon = payload.icon || `${self.registration.scope}assets/icons/icon-192.png`;
