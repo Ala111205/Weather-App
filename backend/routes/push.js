@@ -2,6 +2,7 @@ const express = require('express');
 const webpush = require('web-push');
 const Subscription = require('../model/subscription');
 const LastCity = require('../model/lastCity');
+const sendManualWeatherPush = require('../utils/sendManualWeatherPush');
 const router = express.Router();
 
 webpush.setVapidDetails(
@@ -150,6 +151,22 @@ router.post('/test-push', async (req, res) => {
 
 router.get('/test-push', async (req, res) => {
   res.json({ message: '✅ Push route is active, use POST to send notifications.' });
+});
+
+router.post('/search', async (req, res) => {
+  const { city, endpoint } = req.body;
+
+  if (!city || !endpoint) {
+    return res.status(400).json({ message: 'city & endpoint required' });
+  }
+
+  try {
+    await sendManualWeatherPush(city, endpoint);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[MANUAL PUSH ERROR]', err.message);
+    res.status(500).json({ success: false });
+  }
 });
 
 module.exports = router;
