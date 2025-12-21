@@ -8,7 +8,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const weatherRoutes = require('./routes/weather');
 const pushRoutes = require('./routes/push');
-const sendWeatherPush = require('./utils/sendWeatherPush');
+const sendManualWeatherPush = require('./utils/sendManualWeatherPush');
 
 const app = express();
 
@@ -85,16 +85,21 @@ webpush.setVapidDetails(
 
 app.get('/trigger-weather-push', async (req, res) => {
   try {
-    console.log('🕒 Triggered via cron-job.org at', new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }));
-    const result = await sendWeatherPush();
+    console.log(
+      '🕒 Automated weather push triggered at',
+      new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+    );
+
+    // automated trigger → manualTrigger = false
+    await sendManualWeatherPush(null, null, false);
+
     res.status(200).json({
       success: true,
       time: new Date().toISOString(),
-      sent: result.sent,
-      removed: result.removed
+      mode: 'automatic'
     });
   } catch (err) {
-    console.error('❌ Error during weather push:', err.message);
+    console.error('❌ Error during automatic weather push:', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
