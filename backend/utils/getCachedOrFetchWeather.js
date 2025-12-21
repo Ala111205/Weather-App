@@ -1,14 +1,12 @@
-const WeatherCache = require('../models/WeatherCache');
 const fetchWeatherFromAPI = require('./fetchWeatherFromAPI');
 
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
-async function getCachedOrFetchWeather(city) {
+async function getCachedOrFetchWeather(city, force = false) {
     const cached = await WeatherCache.findOne({ city });
 
-    if (cached) {
+    if (!force && cached) {
         const age = Date.now() - cached.fetchedAt.getTime();
-
         if (age < CACHE_TTL) {
         return cached.data;
         }

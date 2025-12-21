@@ -5,12 +5,14 @@ const LastCity = require('../model/lastCity');
 const sendManualWeatherPush = require('../utils/sendManualWeatherPush');
 const router = express.Router();
 
+// Configure VAPID
 webpush.setVapidDetails(
   'mailto:sadham070403.com',
   process.env.VAPID_PUBLIC_KEY,
   process.env.VAPID_PRIVATE_KEY
 );
 
+// Determine base URL for notification icons
 const getBaseURL = () =>
   process.env.NODE_ENV === 'production'
     ? process.env.FRONTEND_PROD_URL
@@ -25,8 +27,8 @@ router.post('/subscribe', async (req, res) => {
     const deviceId = Buffer.from(endpoint).toString('base64').slice(0, 20);
 
     await Subscription.deleteMany({ endpoint });
-
     await Subscription.create({ endpoint, keys, deviceId });
+
     console.log('✅ New subscription added');
     res.status(201).json({ message: 'Subscribed successfully' });
   } catch (err) {
@@ -42,6 +44,8 @@ router.post('/unsubscribe', async (req, res) => {
     if (!endpoint) return res.status(400).json({ message: 'No endpoint' });
 
     await Subscription.deleteOne({ endpoint });
+    await LastCity.deleteOne({ endpoint });
+
     console.log(`🗑️ Subscription deleted: ${endpoint}`);
     res.json({ message: 'Unsubscribed successfully' });
   } catch (err) {
@@ -50,10 +54,7 @@ router.post('/unsubscribe', async (req, res) => {
   }
 });
 
-router.get('/unsubscribe', (req, res) => {
-  res.send('Use POST /api/push/unsubscribe with { endpoint } in body');
-});
-
+// Check if subscription exists in backend
 router.post('/check-subscription', async (req, res) => {
   try {
     const { endpoint } = req.body;
@@ -65,9 +66,25 @@ router.post('/check-subscription', async (req, res) => {
   }
 });
 
+// Shortcut route for manual trigger from frontend search
+router.post('/search', async (req, res) => {
+  const { city, endpoint } = req.body;
+  if (!city || !endpoint) return res.status(400).json({ message: 'city & endpoint required' });
+
+  try {
+    await sendManualWeatherPush(city, endpoint);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[MANUAL PUSH ERROR]', err.message);
+    res.status(500).json({ success: false });
+  }
+});
+
+// Test push route
 router.post('/test-push', async (req, res) => {
   const baseURL = getBaseURL();
   const subs = await Subscription.find({});
+
   for (const s of subs) {
     await webpush.sendNotification(s, JSON.stringify({
       data: {
@@ -77,27 +94,12 @@ router.post('/test-push', async (req, res) => {
       }
     }));
   }
+
   res.json({ ok: true });
 });
 
-router.get('/test-push', async (req, res) => {
+router.get('/test-push', (req, res) => {
   res.json({ message: '✅ Push route is active, use POST to send notifications.' });
-});
-
-router.post('/search', async (req, res) => {
-  const { city, endpoint } = req.body;
-
-  if (!city || !endpoint) {
-    return res.status(400).json({ message: 'city & endpoint required' });
-  }
-
-  try {
-    await sendManualWeatherPush(city, endpoint);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('[MANUAL PUSH ERROR]', err.message);
-    res.status(500).json({ success: false });
-  }
 });
 
 module.exports = router;
