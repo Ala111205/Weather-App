@@ -90,12 +90,18 @@ app.get('/trigger-weather-push', async (req, res) => {
       new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
     );
 
-    // automated trigger → manualTrigger = false
-    await sendManualWeatherPush(null, null, false);
+    // Get all cities that users searched before
+    const cities = await LastCity.distinct('name');
+
+    let totalSent = 0;
+    for (const city of cities) {
+      totalSent += await sendManualWeatherPush(city, null, false);
+    }
 
     res.status(200).json({
       success: true,
-      time: new Date().toISOString(),
+      cities,
+      sent: totalSent,
       mode: 'automatic'
     });
   } catch (err) {
