@@ -1,4 +1,4 @@
-const CACHE_NAME = 'weather-pwa-v11';
+const CACHE_NAME = 'weather-pwa-v12';
 const STATIC_ASSETS = ['/', '/index.html', '/css/style.css', '/js/app.js', '/manifest.json'];
 
 // Install: cache static assets
