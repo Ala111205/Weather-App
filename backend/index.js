@@ -9,6 +9,7 @@ const cors = require('cors');
 const weatherRoutes = require('./routes/weather');
 const pushRoutes = require('./routes/push');
 const sendManualWeatherPush = require('./utils/sendManualWeatherPush');
+const LastCity = require('./model/lastCity');
 
 const app = express();
 
