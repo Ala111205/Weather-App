@@ -72,7 +72,7 @@ router.post('/search', async (req, res) => {
   if (!city || !endpoint) return res.status(400).json({ message: 'city & endpoint required' });
 
   try {
-    await sendManualWeatherPush(city, endpoint);
+    await sendManualWeatherPush(city, endpoint, true);
     res.json({ success: true });
   } catch (err) {
     console.error('[MANUAL PUSH ERROR]', err.message);
