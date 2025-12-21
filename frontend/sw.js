@@ -1,4 +1,4 @@
-const CACHE_NAME = 'weather-pwa-v10';
+const CACHE_NAME = 'weather-pwa-v11';
 const STATIC_ASSETS = ['/', '/index.html', '/css/style.css', '/js/app.js', '/manifest.json'];
 
 // Install: cache static assets
@@ -13,7 +13,7 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
     const existing = await self.registration.getNotifications();
-    for (const n of existing) n.close();
+    existing.forEach(n => n.close());
     await self.clients.claim();
   })());
 });
@@ -21,10 +21,9 @@ self.addEventListener('activate', event => {
 // Fetch: network-first for APIs, cache-first for static assets
 self.addEventListener('fetch', event => {
   const req = event.request;
-  const url = new URL(req.url);
-
   if (req.method !== 'GET') return;
 
+  const url = new URL(req.url);
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(networkFirst(req));
   } else {
@@ -36,7 +35,7 @@ async function networkFirst(req) {
   const cache = await caches.open(CACHE_NAME);
   try {
     const resp = await fetch(req);
-    if (resp && resp.ok) cache.put(req, resp.clone());
+    if (resp?.ok) cache.put(req, resp.clone());
     return resp;
   } catch {
     const cached = await cache.match(req);
@@ -47,21 +46,19 @@ async function networkFirst(req) {
   }
 }
 
-// Push rate-limiting: track last push per city per endpoint
+// Push notification handling with deduplication
 self.addEventListener('push', event => {
   if (!event.data) return;
 
   let payload;
-  try {
-    payload = event.data.json();
-  } catch {
-    console.warn('Malformed push payload');
-    return;
+  try { payload = event.data.json(); } 
+  catch { 
+    console.warn('⚠️ Malformed push payload'); 
+    return; 
   }
 
   const data = payload.data || payload;
-
-  const id = data.id || data.tag || 'weather-update';
+  const id = `${data.id || 'weather'}-${Date.now()}`; // unique every time
   const title = data.title || 'Weather Update';
   const body = data.body || 'Tap to open app';
 
@@ -70,15 +67,27 @@ self.addEventListener('push', event => {
       body,
       icon: data.icon || '/assets/icons/icon-192.png',
       badge: data.badge || '/assets/icons/icon-192.png',
-      tag: id,                // TRUE dedupe
+      tag: id,        // unique, so each push shows
       renotify: false,
       data: { id, ts: Date.now() }
     })
   );
 });
 
-// Notification click: open PWA
+// Notification click opens app
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  event.waitUntil(clients.openWindow('/'));
+  event.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true })
+    .then(windows => {
+      if (windows.length) return windows[0].focus();
+      return clients.openWindow('/');
+    })
+  );
+});
+
+// Message listener (unsubscribe / clear notifications)
+self.addEventListener('message', event => {
+  if (event.data?.type === 'UNSUBSCRIBE') {
+    self.registration.getNotifications().then(notifs => notifs.forEach(n => n.close()));
+  }
 });
