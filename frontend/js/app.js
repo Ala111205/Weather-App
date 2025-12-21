@@ -1,6 +1,6 @@
 import * as API from './api.js';
 import * as UI from './ui.js';
-import { el, parseLatLonInput, showToast, formatTemp } from './utils.js';
+import { el, parseLatLonInput, alert, formatTemp } from './utils.js';
 import { initMap, showLocation } from './map.js';
 import { renderTempChart } from './charts.js';
 
@@ -20,7 +20,7 @@ const unsubscribeBtn = el('unsubscribeBtn');
 
 async function performSearch(term) {
   try {
-    showToast('Fetching weather...');
+    alert('Fetching weather...');
     let coords = parseLatLonInput(term);
     let current = coords ? await API.getCurrentByCoords(coords.lat, coords.lon, isCelsius?'metric':'imperial')
                          : await API.getCurrentByCity(term, isCelsius?'metric':'imperial');
@@ -47,10 +47,10 @@ async function performSearch(term) {
     // Push notification for this city
     API.pushCityWeather(current);
 
-    showToast('Updated');
+    alert('Updated');
   } catch (err) {
     console.error(err);
-    showToast(err.message || 'Failed to load');
+    alert(err.message || 'Failed to load');
   }
 }
 
@@ -58,14 +58,14 @@ async function performSearch(term) {
 
 searchBtn.addEventListener('click', ()=> {
   const q = cityInput.value.trim();
-  if (!q) return showToast('Enter a city or lat,lon');
+  if (!q) return alert('Enter a city or lat,lon');
   performSearch(q);
 });
 
 compareBtn.addEventListener('click', () => {
   compareList.style.border = '5px double'
   const city = cityInput.value.trim();
-  if (!city) return showToast('Enter a city name to compare');
+  if (!city) return alert('Enter a city name to compare');
   addCityToCompare(city);
 });
 
@@ -85,8 +85,8 @@ geoBtn.addEventListener('click', ()=> {
     navigator.geolocation.getCurrentPosition(async pos=>{
       const { latitude, longitude } = pos.coords;
       performSearch(`${latitude},${longitude}`);
-    }, err => showToast('Geolocation denied'));
-  } else showToast('Geolocation not supported');
+    }, err => alert('Geolocation denied'));
+  } else alert('Geolocation not supported');
 });
 
 themeToggle.addEventListener('click', ()=> {
@@ -144,7 +144,7 @@ async function addCityToCompare(city) {
     localStorage.setItem('compareCities', JSON.stringify(compareCities));
 
   } catch (err) {
-    showToast('Could not fetch data for ' + city);
+    alert('Could not fetch data for ' + city);
   }
 }
 
@@ -158,53 +158,55 @@ async function updateUI(subscribed) {
 
 // ==================== SUBSCRIBE ====================
 window.subscribeUser = async () => {
-  if (!API.isPushSupported()) return false;
   try {
-    const reg = window.swRegistration || await API.initServiceWorker();
-    if (!reg) return false;
+    if (!API.isPushSupported()) return;
 
     const permission = await Notification.requestPermission();
-    if (permission !== 'granted') return false;
+    if (permission !== 'granted') throw new Error('Permission denied');
 
-    let sub = await reg.pushManager.getSubscription();
-    if (!sub) sub = await API.createAndSendSubscription(reg);
-    else {
-      const check = await API.checkSubscription(sub.endpoint);
-      if (!check.exists) sub = await API.createAndSendSubscription(reg);
+    const reg = await API.initServiceWorker(); // 🔥 FIX
+    const existing = await reg.pushManager.getSubscription();
+
+    let sub = existing;
+
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: API.urlBase64ToUint8Array(API.VAPID_KEY)
+      });
     }
 
+    await API.subscribePush(sub);
     await updateUI(true);
-    showToast('Notifications enabled');
-    return true;
+    alert('Notifications enabled');
+
   } catch (err) {
-    console.error('❌ Failed to subscribe:', err);
-    return false;
+    console.error('❌ Failed to enable:', err.message);
+    alert('Failed to enable notifications');
   }
 };
-
 // ==================== UNSUBSCRIBE ====================
 window.unsubscribeUser = async () => {
-  if (!API.isPushSupported()) return;
   try {
-    const reg = window.swRegistration || await API.initServiceWorker();
-    if (!reg) return;
-
+    const reg = await API.initServiceWorker(); // 🔥 FIX
     const sub = await reg.pushManager.getSubscription();
-    if (!sub) {
-      await updateUI(false);
-      return;
-    }
+
+    if (!sub) return;
 
     await API.unsubscribePush(sub);
     await sub.unsubscribe();
-    if (reg.active) reg.active.postMessage({ type: 'UNSUBSCRIBE' });
+
+    reg.active?.postMessage({ type: 'UNSUBSCRIBE' });
 
     await updateUI(false);
-    showToast('Notifications disabled');
+    alert('Notifications disabled');
+
   } catch (err) {
-    console.warn('❌ Failed to unsubscribe:', err);
+    console.error('❌ Unsubscribe failed:', err.message);
   }
 };
+
+
 
 // ==================== INITIAL LOAD ====================
 (async () => {

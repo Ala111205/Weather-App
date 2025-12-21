@@ -59,13 +59,22 @@ export async function reverseGeocode(lat, lon) {
 // ======================== SERVICE WORKER ========================
 export async function initServiceWorker() {
   if (!isPushSupported()) return null;
-  const regs = await navigator.serviceWorker.getRegistrations();
-  let reg = regs.find(r => r.active);
+
+  let reg = await navigator.serviceWorker.getRegistration();
+
   if (!reg) {
     reg = await navigator.serviceWorker.register('/sw.js');
-    await navigator.serviceWorker.ready;
   }
-  window.swRegistration = reg;
+
+  if (!reg.active) {
+    await navigator.serviceWorker.ready;
+    reg = await navigator.serviceWorker.getRegistration();
+  }
+
+  if (!reg?.active) {
+    throw new Error('Service Worker not active');
+  }
+
   return reg;
 }
 
