@@ -4,18 +4,22 @@ const LastCity = require('../model/lastCity');
 const axios = require('axios');
 
 const BASE = 'https://api.openweathermap.org/data/2.5/weather';
-const MIN_PUSH_INTERVAL = 10 * 60 * 1000; // 10 min
+const MIN_PUSH_INTERVAL = 10 * 60 * 1000; // 10 min for automated pushes
 
 const getBaseURL = () =>
   process.env.NODE_ENV === 'production'
     ? process.env.FRONTEND_PROD_URL
     : process.env.FRONTEND_BASE_URL;
 
-// Fetch weather safely with retries
+// Helper: fetch weather from OpenWeather with retries
 async function fetchWeather(city, retries = 2) {
   try {
     const res = await axios.get(BASE, {
-      params: { q: city, units: 'metric', appid: process.env.OPENWEATHER_API_KEY },
+      params: {
+        q: city,
+        units: 'metric',
+        appid: process.env.OPENWEATHER_API_KEY
+      },
       timeout: 4000
     });
     return {
@@ -32,14 +36,20 @@ async function fetchWeather(city, retries = 2) {
   }
 }
 
-async function sendManualWeatherPush(city, targetEndpoint = null) {
-  if (!city) return { sent: 0 };
+/**
+ * Send weather push notifications
+ * @param {string} city - city name
+ * @param {string|null} targetEndpoint - optional specific subscription
+ * @param {boolean} manualTrigger - true if triggered via /search
+ */
+async function sendManualWeatherPush(city, targetEndpoint = null, manualTrigger = false) {
+  if (!city) return;
 
   const weather = await fetchWeather(city);
-  if (!weather) return { sent: 0 };
+  if (!weather) return;
 
   const subs = await Subscription.find(targetEndpoint ? { endpoint: targetEndpoint } : {});
-  if (!subs.length) return { sent: 0 };
+  if (!subs.length) return;
 
   const baseURL = getBaseURL();
   let sent = 0;
@@ -47,14 +57,13 @@ async function sendManualWeatherPush(city, targetEndpoint = null) {
   for (const s of subs) {
     const last = await LastCity.findOne({ endpoint: s.endpoint });
 
-    // Skip if same city pushed too recently
-    if (last && last.name === city && Date.now() - new Date(last.updatedAt).getTime() < MIN_PUSH_INTERVAL) {
-      console.log(`⏱️ Skipping push for "${city}" to ${s.endpoint.slice(-12)} (too soon)`);
+    // Only enforce MIN_PUSH_INTERVAL for automated pushes
+    if (!manualTrigger && last && Date.now() - new Date(last.updatedAt).getTime() < MIN_PUSH_INTERVAL) {
       continue;
     }
 
     const tail = s.endpoint.slice(-12).replace(/[^a-z0-9]/gi, '');
-    const notificationId = `weather-${city.replace(/\s+/g, '_')}-${tail}`;
+    const notificationId = `weather-${city.replace(/\s+/g, '_')}-${tail}-${Date.now()}`;
 
     const payload = JSON.stringify({
       data: {
@@ -70,10 +79,10 @@ async function sendManualWeatherPush(city, targetEndpoint = null) {
       await webpush.sendNotification(s, payload);
       sent++;
 
-      // Update last push info
+      // Update last push timestamp
       await LastCity.findOneAndUpdate(
         { endpoint: s.endpoint },
-        { name: city, updatedAt: new Date(), lastData: { temp: weather.temp, desc: weather.description } },
+        { name: city, updatedAt: new Date() },
         { upsert: true }
       );
     } catch (err) {
@@ -87,8 +96,8 @@ async function sendManualWeatherPush(city, targetEndpoint = null) {
     }
   }
 
-  console.log(`📩 Manual weather push for "${city}" sent to ${sent} subscriber(s)`);
-  return { sent };
+  console.log(`📩 Weather push for "${city}" sent to ${sent} subscriber(s)${manualTrigger ? ' (manual)' : ''}`);
+  return sent;
 }
 
 module.exports = sendManualWeatherPush;

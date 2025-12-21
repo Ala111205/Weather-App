@@ -83,11 +83,13 @@ self.addEventListener('push', event => {
     const existing = await self.registration.getNotifications({ tag: id });
     if (existing && existing.length) return; // skip duplicates
 
+    // Generate unique tag for every push
+    const uniqueTag = `${id}-${Date.now()}`;
     await self.registration.showNotification(title, {
       body,
       icon,
       badge,
-      tag: id,
+      tag: uniqueTag,
       renotify: false,
       data: { id, timestamp: now }
     });
