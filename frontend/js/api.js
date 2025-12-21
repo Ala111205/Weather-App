@@ -1,5 +1,37 @@
 const BASE_URL = 'https://weather-app-lsaz.onrender.com';
 
+export const VAPID_KEY =
+  'BCkItBSMU1gfKoiNDaKLZj9xvKGPFyYn9dqZ29_wNunc4_z-ITd9xhvxXU8fXTN0JQbb8b2YujBCCPi2M05m9co';
+
+export function isPushSupported() {
+  return 'serviceWorker' in navigator && 'PushManager' in window;
+}
+
+export function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+export async function initServiceWorker() {
+  if (!isPushSupported()) return null;
+
+  const regs = await navigator.serviceWorker.getRegistrations();
+  let reg = regs.find(r => r.active);
+
+  if (!reg) {
+    reg = await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
+  }
+
+  window.swRegistration = reg;
+  return reg;
+}
+
 async function fetchJSON(url, retries=2) {
   try {
     const res = await fetch(url);

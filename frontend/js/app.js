@@ -94,15 +94,11 @@ themeToggle.addEventListener('click', ()=> {
 });
 
 subscribeBtn.addEventListener('click', async () => {
-  const success = await window.subscribeUser();
+  const ok = await window.subscribeUser();
+  if (!ok) return;
 
-  if (!success) {
-    showToast('Notification permission blocked');
-    return;
-  }
-
-  subscribeBtn.style.display = "none";
-  unsubscribeBtn.style.display = "inline-block";
+  subscribeBtn.style.display = 'none';
+  unsubscribeBtn.style.display = 'inline-block';
   showToast('Notifications enabled');
 });
 
@@ -172,25 +168,29 @@ UI.updateRecentSearches(recent);
 (async () => {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
 
-  const reg = await navigator.serviceWorker.register('/sw.js');
-  await navigator.serviceWorker.ready;
-  window.swRegistration = reg;
+  // 1️⃣ Register / reuse SW ONCE
+  const reg = await initServiceWorker();
+  if (!reg) return;
 
+  // 2️⃣ Get browser subscription
   const sub = await reg.pushManager.getSubscription();
 
   if (!sub) {
+    // No browser subscription → show Subscribe
     subscribeBtn.style.display = 'inline-block';
     unsubscribeBtn.style.display = 'none';
     return;
   }
 
+  // 3️⃣ Verify with backend
   const check = await API.checkSubscription(sub.endpoint);
 
   if (check.exists) {
+    // Browser + backend OK
     subscribeBtn.style.display = 'none';
     unsubscribeBtn.style.display = 'inline-block';
   } else {
-    // stale browser subscription
+    // Browser has stale subscription → clean it
     await sub.unsubscribe();
     subscribeBtn.style.display = 'inline-block';
     unsubscribeBtn.style.display = 'none';
@@ -198,50 +198,103 @@ UI.updateRecentSearches(recent);
 })();
 
 window.subscribeUser = async () => {
+  // 0️⃣ Hard capability check (mobile-safe)
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.warn('❌ Push not supported on this device');
+    return false;
+  }
+
   try {
-    const reg = window.swRegistration || await navigator.serviceWorker.ready;
+    // 1️⃣ Ensure SW exists (ONLY ONCE)
+    const reg = window.swRegistration || await initServiceWorker();
+    if (!reg) return false;
 
-    // Prevent duplicate subscribe
-    const existing = await reg.pushManager.getSubscription();
-    if (existing) return true;
+    // 2️⃣ If already subscribed → verify backend, do NOT resubscribe
+    let sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      const check = await API.checkSubscription(sub.endpoint);
+      if (check.exists) {
+        console.log('✅ Already subscribed (browser + backend)');
+        return true;
+      }
 
+      // Browser has stale subscription → clean it
+      await sub.unsubscribe();
+      sub = null;
+    }
+
+    // 3️⃣ Request permission ONLY when user clicks
     const permission = await Notification.requestPermission();
-    if (permission !== 'granted') return false;
+    if (permission !== 'granted') {
+      console.warn('🚫 Notification permission denied');
+      return false;
+    }
 
-    const sub = await reg.pushManager.subscribe({
+    // 4️⃣ Create fresh subscription
+    sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: API.urlBase64ToUint8Array(VAPID_KEY)
     });
 
+    // 5️⃣ Sync with backend (single source of truth)
     await API.subscribePush(sub);
+
+    console.log('🔔 Push subscribed successfully');
     return true;
 
   } catch (err) {
-    console.warn('Subscribe blocked (mobile expected):', err.message);
+    // 🔇 SILENT FAIL — mobile browsers are flaky
+    console.warn('⚠️ subscribeUser failed (ignored):', err.message);
     return false;
   }
 };
 
 window.unsubscribeUser = async () => {
-  try {
-    const reg = window.swRegistration || await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.getSubscription();
-    if (!sub) return;
+  // 0️⃣ Capability check (silent)
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.warn('Push not supported');
+    return false;
+  }
 
-    await API.unsubscribePush(sub);
+  try {
+    const reg = window.swRegistration || await initServiceWorker();
+    if (!reg) return false;
+
+    const sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      console.log('ℹ️ No active subscription to remove');
+      return true; // already clean
+    }
+
+    // 1️⃣ Backend cleanup FIRST (never trust browser state)
+    try {
+      await API.unsubscribePush(sub);
+    } catch (e) {
+      // backend failure must NOT block browser cleanup
+      console.warn('Backend unsubscribe failed (ignored)');
+    }
+
+    // 2️⃣ Browser unsubscribe
     await sub.unsubscribe();
 
+    // 3️⃣ Close active notifications (optional but clean)
     if (reg.active) {
       reg.active.postMessage({ type: 'UNSUBSCRIBE' });
     }
 
+    // 4️⃣ Update UI only after everything succeeded
     subscribeBtn.style.display = 'inline-block';
     unsubscribeBtn.style.display = 'none';
+
     showToast('Notifications disabled');
+    console.log('🗑️ Push unsubscribed cleanly');
+
+    return true;
 
   } catch (err) {
-    console.warn('Unsubscribe failed (ignored):', err.message);
+    // 🔇 Silent failure — do not break mobile UX
+    console.warn('unsubscribeUser failed (ignored):', err.message);
+    return false;
   }
 };
-
 

@@ -48,44 +48,33 @@ async function networkFirst(req) {
 }
 
 // Push rate-limiting: track last push per city per endpoint
-const lastPushMap = new Map();
-const MIN_PUSH_INTERVAL = 10 * 60 * 1000; // 10 min
-
 self.addEventListener('push', event => {
   if (!event.data) return;
 
-  let payload = {};
+  let payload;
   try {
-    payload = event.data.json()?.data || {};
+    payload = event.data.json();
   } catch {
-    console.warn('⚠️ Malformed push data');
+    console.warn('Malformed push payload');
     return;
   }
 
-  const id = payload.id || `${payload.title || 'weather'}-${(payload.body || '').slice(0, 40)}`;
-  const city = payload.title?.replace(/^🌤 Weather in /, '') || '';
-  const now = Date.now();
+  const data = payload.data || payload;
 
-  const title = payload.title || 'Weather Update';
-  const body = payload.body || 'Click to open app';
-  const icon = payload.icon || `${self.registration.scope}assets/icons/icon-192.png`;
-  const badge = payload.badge || icon;
+  const id = data.id || data.tag || 'weather-update';
+  const title = data.title || 'Weather Update';
+  const body = data.body || 'Tap to open app';
 
-  event.waitUntil((async () => {
-    const existing = await self.registration.getNotifications({ tag: id });
-    if (existing && existing.length) return; // skip duplicates
-
-    // Generate unique tag for every push
-    const uniqueTag = `${id}-${Date.now()}`;
-    await self.registration.showNotification(title, {
+  event.waitUntil(
+    self.registration.showNotification(title, {
       body,
-      icon,
-      badge,
-      tag: uniqueTag,
+      icon: data.icon || '/assets/icons/icon-192.png',
+      badge: data.badge || '/assets/icons/icon-192.png',
+      tag: id,                // TRUE dedupe
       renotify: false,
-      data: { id, timestamp: now }
-    });
-  })());
+      data: { id, ts: Date.now() }
+    })
+  );
 });
 
 // Notification click: open PWA
