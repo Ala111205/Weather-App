@@ -86,15 +86,18 @@ self.addEventListener('push', event => {
     return;
   }
 
-  const title = payload.title || 'Weather Update';
-  const body  = payload.body  || 'Tap to open app';
+  // Build unique notification tag
+    const id = `weather-${Date.now()}`;
+    const title = `Weather: ${data.name}`;
+    const body = `Temp: ${data.lastData?.temp ?? '-'}°C, ${data.lastData?.desc ?? ''}`;
+
 
   event.waitUntil(
     self.registration.showNotification(title, {
       body,
       icon: payload.icon || '/assets/icons/icon-192.png',
       badge: '/assets/icons/icon-192.png',
-      tag: `weather-${Date.now()}`, // unique → multiple notifications allowed
+      tag: id, // unique → multiple notifications allowed
       renotify: false,
       data: payload.data || {}
     })
