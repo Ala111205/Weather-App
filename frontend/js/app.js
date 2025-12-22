@@ -24,37 +24,47 @@ const unsubscribeBtn = el('unsubscribeBtn');
 async function performSearch(term) {
   try {
     showToast('Fetching weather...');
-    let coords = parseLatLonInput(term);
-    let current = coords ? await API.getCurrentByCoords(coords.lat, coords.lon, isCelsius?'metric':'imperial')
-                         : await API.getCurrentByCity(term, isCelsius?'metric':'imperial');
 
+    const coords = parseLatLonInput(term);
+    const current = coords 
+      ? await API.getCurrentByCoords(coords.lat, coords.lon, isCelsius ? 'metric' : 'imperial')
+      : await API.getCurrentByCity(term, isCelsius ? 'metric' : 'imperial');
+
+    // Render current weather
     UI.renderCurrent(current, isCelsius);
 
-    const lat = current.coord.lat, lon = current.coord.lon;
-    showLocation(lat, lon, `${current.name}`);
-    const forecast = await API.getForecast(coords? coords.lat : term, coords? coords.lon : null, isCelsius?'metric':'imperial');
+    const lat = current.coord.lat;
+    const lon = current.coord.lon;
+    showLocation(lat, lon, current.name);
 
-    // pick every 3 hours or daily summary; here we pass first 8 points
-    UI.renderForecastList(forecast.list.slice(0,8), isCelsius);
-    const labels = forecast.list.slice(0,8).map(l => new Date(l.dt*1000).toLocaleTimeString());
-    const temps = forecast.list.slice(0,8).map(l => l.main.temp);
+    // Render forecast (first 8 points)
+    const forecast = await API.getForecast(coords ? coords.lat : term, coords ? coords.lon : null, isCelsius ? 'metric' : 'imperial');
+    UI.renderForecastList(forecast.list.slice(0, 8), isCelsius);
+
+    const labels = forecast.list.slice(0, 8).map(l => new Date(l.dt * 1000).toLocaleTimeString());
+    const temps = forecast.list.slice(0, 8).map(l => l.main.temp);
     renderTempChart(document.getElementById('tempChart').getContext('2d'), labels, temps, isCelsius);
+
     const air = await API.getAir(lat, lon);
     UI.renderAQI(air);
 
-    // save recent
-    recent = [current.name, ...recent.filter(r=>r!==current.name)].slice(0,3);
+    // Save recent searches
+    recent = [current.name, ...recent.filter(r => r !== current.name)].slice(0, 3);
     localStorage.setItem('recentCities', JSON.stringify(recent));
     UI.updateRecentSearches(recent);
 
-    // Push notification for the lastCity
+    // Update lastCityForNotification with full data for push
     lastCityForNotification = {
       name: current.name,
       lat: current.coord.lat,
-      lon: current.coord.lon
+      lon: current.coord.lon,
+      temp: current.main.temp,
+      desc: current.weather[0].description
     };
 
     showToast('Updated');
+
+    return current; // return current for further use (e.g., subscription update)
   } catch (err) {
     console.error(err);
     showToast(err.message || 'Failed to load');
@@ -63,22 +73,44 @@ async function performSearch(term) {
 
 // ===== BUTTON EVENT LISTENERS =====
 
+// ==================== SEARCH BUTTON ====================
 searchBtn.addEventListener('click', async () => {
   const q = cityInput.value.trim();
-  if (!q) return showToast('Enter a city or lat,lon');
+  if (!q) return showToast('Enter a city name or lat,lon');
 
-  await performSearch(q);
+  // Perform search and get the current city object
+  const current = await performSearch(q);
+  if (!current) return;
 
-  if (!lastCityForNotification) return;
+  // Update last searched city for notifications if subscribed
+  try {
+    const reg = await API.getActiveSW();
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      // Prepare full lastCityForNotification data
+      lastCityForNotification = {
+        name: current.name,
+        lat: current.coord.lat,
+        lon: current.coord.lon,
+        temp: current.main.temp,
+        desc: current.weather[0].description
+      };
 
-  const reg = await API.getActiveSW();
-  const sub = await reg.pushManager.getSubscription();
+      // Update backend subscription with the latest city
+      await API.updateSubscriptionCity({
+        endpoint: sub.endpoint,
+        city: lastCityForNotification.name,
+        lat: lastCityForNotification.lat,
+        lon: lastCityForNotification.lon,
+        temp: lastCityForNotification.temp,
+        desc: lastCityForNotification.desc
+      });
 
-  if (sub) {
-    await API.updateSubscriptionCity({
-      endpoint: sub.endpoint,
-      city: lastCityForNotification
-    });
+      // Trigger a manual push immediately
+      await API.pushCityWeather(lastCityForNotification);
+    }
+  } catch (err) {
+    console.error('❌ Failed to update last city for notifications:', err.message);
   }
 });
 
@@ -183,21 +215,22 @@ window.subscribeUser = async () => {
         userVisibleOnly: true,
         applicationServerKey: API.urlBase64ToUint8Array(API.VAPID_KEY)
       });
+      await API.subscribePush(sub);
     }
 
-    await API.subscribePush(sub);
-
-    // If user already searched a city → sync it now
+    // Sync last searched city if available
     if (lastCityForNotification) {
       await API.updateSubscriptionCity({
         endpoint: sub.endpoint,
-        city: lastCityForNotification
+        city: lastCityForNotification.name,
+        lat: lastCityForNotification.lat,
+        lon: lastCityForNotification.lon,
+        temp: lastCityForNotification.temp,
+        desc: lastCityForNotification.desc
       });
     }
 
-    await updateUI(true);
     alert('Notifications enabled');
-
   } catch (err) {
     console.error('❌ Failed to enable:', err.message);
     alert('Failed to enable notifications');
@@ -207,9 +240,8 @@ window.subscribeUser = async () => {
 // ==================== UNSUBSCRIBE ====================
 window.unsubscribeUser = async () => {
   try {
-    const reg = await API.getActiveSW(); // 🔥 FIX
+    const reg = await API.getActiveSW();
     const sub = await reg.pushManager.getSubscription();
-
     if (!sub) return;
 
     await API.unsubscribePush(sub);
@@ -217,15 +249,11 @@ window.unsubscribeUser = async () => {
 
     reg.active?.postMessage({ type: 'UNSUBSCRIBE' });
 
-    await updateUI(false);
     alert('Notifications disabled');
-
   } catch (err) {
     console.error('❌ Unsubscribe failed:', err.message);
   }
 };
-
-
 
 // ==================== INITIAL LOAD ====================
 (async () => {

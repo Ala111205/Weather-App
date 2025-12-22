@@ -12,22 +12,14 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY
 );
 
-// Determine base URL for notification icons
-const getBaseURL = () =>
-  process.env.NODE_ENV === 'production'
-    ? process.env.FRONTEND_PROD_URL
-    : process.env.FRONTEND_BASE_URL;
-
 // Subscribe
 router.post('/subscribe', async (req, res) => {
   try {
     const { endpoint, keys } = req.body;
     if (!endpoint || !keys) return res.status(400).json({ message: 'Invalid subscription' });
 
-    const deviceId = Buffer.from(endpoint).toString('base64').slice(0, 20);
-
     await Subscription.deleteMany({ endpoint });
-    await Subscription.create({ endpoint, keys, deviceId });
+    await Subscription.create({ endpoint, keys });
 
     console.log('✅ New subscription added');
     res.status(201).json({ message: 'Subscribed successfully' });
@@ -54,67 +46,53 @@ router.post('/unsubscribe', async (req, res) => {
   }
 });
 
-// Check if subscription exists in backend
+// Check if subscription exists
 router.post('/check-subscription', async (req, res) => {
   try {
     const { endpoint } = req.body;
     const exists = await Subscription.exists({ endpoint });
     res.json({ exists: !!exists });
   } catch (err) {
-    console.error('Error checking subscription:', err);
+    console.error(err);
     res.status(500).json({ exists: false });
   }
 });
 
+// Update last searched city
+// Update last city for a subscription
 router.post('/subscription/update-city', async (req, res) => {
-  const { endpoint, city } = req.body;
+  const { endpoint, city, lat, lon, temp, desc } = req.body;
+  if (!endpoint || !city) return res.status(400).json({ message: 'Missing data' });
 
-  if (!endpoint || !city) {
-    return res.status(400).json({ message: 'Missing data' });
-  }
-
-  await Subscription.updateOne(
+  await Subscription.updateOne({ endpoint }, { $set: { city } }, { upsert: true });
+  await LastCity.updateOne(
     { endpoint },
-    { $set: { city } }
+    { $set: { name: city, updatedAt: new Date(), lastData: { lat, lon, temp, desc } } },
+    { upsert: true }
   );
 
   res.json({ message: 'City updated' });
 });
 
-// Shortcut route for manual trigger from frontend search
+// Manual push trigger from frontend search
 router.post('/search', async (req, res) => {
   const { city, endpoint } = req.body;
   if (!city || !endpoint) return res.status(400).json({ message: 'city & endpoint required' });
 
   try {
-    await sendManualWeatherPush(city, endpoint, true);
+    const last = await LastCity.findOne({ endpoint });
+    await webpush.sendNotification({ endpoint }, JSON.stringify({
+      data: {
+        title: `Weather: ${last.name}`,
+        body: `Temp: ${last.lastData.temp ?? '-'}°C, ${last.lastData.desc ?? ''}`,
+        icon: '/assets/icons/icon-192.png'
+      }
+    }));
     res.json({ success: true });
   } catch (err) {
     console.error('[MANUAL PUSH ERROR]', err.message);
     res.status(500).json({ success: false });
   }
-});
-
-// Test push route
-router.post('/test-push', async (req, res) => {
-  const baseURL = getBaseURL();
-  const subs = await Subscription.find({});
-
-  for (const s of subs) {
-    await webpush.sendNotification(s, JSON.stringify({
-      data: {
-        title: 'Manual Push Test',
-        body: 'If you see this, notifications work!',
-        icon: `${baseURL}/assets/icons/icon-192.png`
-      }
-    }));
-  }
-
-  res.json({ ok: true });
-});
-
-router.get('/test-push', (req, res) => {
-  res.json({ message: '✅ Push route is active, use POST to send notifications.' });
 });
 
 module.exports = router;

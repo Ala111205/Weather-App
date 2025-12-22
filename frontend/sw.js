@@ -76,30 +76,37 @@ async function networkFirst(req) {
 
 // Push notification handling (unique tag every time)
 self.addEventListener('push', event => {
-  if (!event.data) return;
+  event.waitUntil((async () => {
+    let data;
 
-  let payload;
-  try { payload = event.data.json(); } 
-  catch { 
-    console.warn('⚠️ Malformed push payload'); 
-    return; 
-  }
+    // Try fetching last city from backend
+    try {
+      const endpoint = event?.subscription?.endpoint;
+      if (!endpoint) return;
 
-  const data = payload.data || payload;
-  const id = `${data.id || 'weather'}-${Date.now()}`; // unique tag each time
-  const title = data.title || 'Weather Update';
-  const body = data.body || 'Tap to open app';
+      const res = await fetch(`/api/push/last-city?endpoint=${encodeURIComponent(endpoint)}`);
+      data = await res.json();
+    } catch (err) {
+      console.error('⚠️ Failed to fetch last city for push:', err);
+      return;
+    }
 
-  event.waitUntil(
-    self.registration.showNotification(title, {
+    if (!data || !data.name) return;
+
+    // Build unique notification tag
+    const id = `weather-${Date.now()}`;
+    const title = `Weather: ${data.name}`;
+    const body = `Temp: ${data.lastData?.temp ?? '-'}°C, ${data.lastData?.desc ?? ''}`;
+
+    await self.registration.showNotification(title, {
       body,
-      icon: data.icon || '/assets/icons/icon-192.png',
-      badge: data.badge || '/assets/icons/icon-192.png',
-      tag: id,        // unique tag ensures all notifications show
+      icon: '/assets/icons/icon-192.png',
+      badge: '/assets/icons/icon-192.png',
+      tag: id,
       renotify: false,
       data: { id, ts: Date.now() }
-    })
-  );
+    });
+  })());
 });
 
 // Notification click opens or focuses the app

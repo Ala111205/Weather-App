@@ -116,7 +116,7 @@ export async function checkSubscription(endpoint) {
 export async function updateSubscriptionCity({ endpoint, city }) {
   if (!endpoint || !city) return;
 
-  const res = await fetch('/api/subscription/update-city', {
+  const res = await fetch(`${BASE_URL}/api/push/subscription/update-city`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
