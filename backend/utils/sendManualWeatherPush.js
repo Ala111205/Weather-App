@@ -2,7 +2,7 @@ const webpush = require('web-push');
 const Subscription = require('../model/subscription');
 const LastCity = require('../model/lastCity');
 
-const MIN_PUSH_INTERVAL = 10 * 60 * 1000; // 10 minutes
+const MIN_PUSH_INTERVAL = 2 * 60 * 1000; // 10 minutes
 
 const getBaseURL = () =>
   process.env.NODE_ENV === 'production'
