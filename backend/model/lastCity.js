@@ -9,6 +9,10 @@ const lastCitySchema = new mongoose.Schema({
     lon: Number,
     temp: Number,
     desc: String
+  },
+  lastPushAt: {
+    type: Date,
+    default: null
   }
 });
 
