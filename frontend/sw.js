@@ -12,8 +12,19 @@ self.addEventListener('install', event => {
 // Activate: claim clients and clear old notifications
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
-    const existing = await self.registration.getNotifications();
-    existing.forEach(n => n.close());
+    // 🔥 DELETE OLD CACHES
+    const keys = await caches.keys();
+    await Promise.all(
+      keys
+        .filter(k => k !== CACHE_NAME)
+        .map(k => caches.delete(k))
+    );
+
+    // Close existing notifications
+    const notifs = await self.registration.getNotifications();
+    notifs.forEach(n => n.close());
+
+    // Take control immediately
     await self.clients.claim();
   })());
 });

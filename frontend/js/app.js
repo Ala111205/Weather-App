@@ -1,3 +1,5 @@
+console.log('🔥 app.js version 2025-09-UNSUBSCRIBE-FIX');
+
 import * as API from './api.js';
 import * as UI from './ui.js';
 import { el, parseLatLonInput, showToast, formatTemp } from './utils.js';
