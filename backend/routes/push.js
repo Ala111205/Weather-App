@@ -58,16 +58,22 @@ router.post('/check-subscription', async (req, res) => {
   }
 });
 
-// Update last searched city
 // Update last city for a subscription
 router.post('/subscription/update-city', async (req, res) => {
   const { endpoint, city, lat, lon, temp, desc } = req.body;
-  if (!endpoint || !city) return res.status(400).json({ message: 'Missing data' });
+  if (!endpoint || !city) {
+    return res.status(400).json({ message: 'Missing data' });
+  }
 
-  await Subscription.updateOne({ endpoint }, { $set: { city } }, { upsert: true });
   await LastCity.updateOne(
     { endpoint },
-    { $set: { name: city, updatedAt: new Date(), lastData: { lat, lon, temp, desc } } },
+    {
+      $set: {
+        name: city,
+        updatedAt: new Date(),
+        lastData: { lat, lon, temp, desc }
+      }
+    },
     { upsert: true }
   );
 
@@ -84,7 +90,9 @@ router.post('/search', async (req, res) => {
     if (!sub) return res.status(404).json({ message: 'Subscription not found' });
 
     const last = await LastCity.findOne({ endpoint });
-    if (!last) return res.status(404).json({ message: 'No city data' });
+    if (!last || last.lastData?.temp == null) {
+      return res.status(400).json({ message: 'No valid weather data' });
+    }
 
     await webpush.sendNotification(
       {
@@ -93,8 +101,8 @@ router.post('/search', async (req, res) => {
       },
       JSON.stringify({
         title: `Weather: ${last.name}`,
-        body: `Temp: ${last.lastData.temp ?? '-'}°C ${last.lastData.desc ?? ''}`,
-        icon: '/assets/icons/icon-192.png'
+        body: `Temp: ${last.lastData.temp}°C ${last.lastData.desc || ''}`,
+        icon: `${process.env.FRONTEND_PROD_URL}/assets/icons/icon-192.png`
       })
     );
 

@@ -86,20 +86,27 @@ self.addEventListener('push', event => {
     return;
   }
 
-  // Build unique notification tag
-    const id = `weather-${Date.now()}`;
-    const title = `Weather: ${data.name}`;
-    const body = `Temp: ${data.lastData?.temp ?? '-'}°C, ${data.lastData?.desc ?? ''}`;
+  // Allow both flat payloads and { data: {...} }
+  const data = payload.data ?? payload;
 
+  const title = data.title || 'Weather Update';
+  const body  = data.body  || 'Tap to open app';
 
   event.waitUntil(
     self.registration.showNotification(title, {
       body,
-      icon: payload.icon || '/assets/icons/icon-192.png',
-      badge: '/assets/icons/icon-192.png',
-      tag: id, // unique → multiple notifications allowed
+      icon: data.icon || '/assets/icons/icon-192.png',
+      badge: data.badge || '/assets/icons/icon-192.png',
+
+      // 🔥 unique tag → no overwriting, no duplicates logic bugs
+      tag: `weather-${Date.now()}`,
       renotify: false,
-      data: payload.data || {}
+
+      // optional metadata for click handling
+      data: {
+        city: data.city,
+        ts: Date.now()
+      }
     })
   );
 });
