@@ -57,8 +57,8 @@ export async function reverseGeocode(lat, lon) {
 }
 
 // ======================== SERVICE WORKER ========================
-export async function initServiceWorker() {
-  if (!isPushSupported()) return null;
+export async function getActiveSW() {
+  if (!('serviceWorker' in navigator)) return null;
 
   let reg = await navigator.serviceWorker.getRegistration();
 
@@ -66,10 +66,14 @@ export async function initServiceWorker() {
     reg = await navigator.serviceWorker.register('/sw.js');
   }
 
-  if (!reg.active) {
-    await navigator.serviceWorker.ready;
-    reg = await navigator.serviceWorker.getRegistration();
+  // 🔥 CRITICAL: wait until this page is controlled
+  if (!navigator.serviceWorker.controller) {
+    await new Promise(resolve => {
+      navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true });
+    });
   }
+
+  reg = await navigator.serviceWorker.getRegistration();
 
   if (!reg?.active) {
     throw new Error('Service Worker not active');

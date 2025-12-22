@@ -159,36 +159,34 @@ async function updateUI(subscribed) {
 // ==================== SUBSCRIBE ====================
 window.subscribeUser = async () => {
   try {
-    if (!API.isPushSupported()) return;
+    if (!API.isPushSupported()) throw new Error('Push not supported');
 
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') throw new Error('Permission denied');
 
-    const reg = await API.initServiceWorker(); // 🔥 FIX
+    const reg = await API.getActiveSW(); // ✅ NOT initServiceWorker
     const existing = await reg.pushManager.getSubscription();
 
-    let sub = existing;
-
-    if (!sub) {
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: API.urlBase64ToUint8Array(API.VAPID_KEY)
-      });
-    }
+    const sub = existing || await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: API.urlBase64ToUint8Array(API.VAPID_KEY)
+    });
 
     await API.subscribePush(sub);
     await updateUI(true);
-    alert('Notifications enabled');
+
+    console.log('✅ Push enabled');
 
   } catch (err) {
-    console.error('❌ Failed to enable:', err.message);
+    console.error('❌ Failed to enable:', err);
     alert('Failed to enable notifications');
   }
 };
+
 // ==================== UNSUBSCRIBE ====================
 window.unsubscribeUser = async () => {
   try {
-    const reg = await API.initServiceWorker(); // 🔥 FIX
+    const reg = await API.getActiveSW(); // 🔥 FIX
     const sub = await reg.pushManager.getSubscription();
 
     if (!sub) return;
@@ -212,7 +210,7 @@ window.unsubscribeUser = async () => {
 (async () => {
   if (!API.isPushSupported()) return;
 
-  const reg = window.swRegistration || await API.initServiceWorker();
+  const reg = window.swRegistration || await API.getActiveSW();
   if (!reg) return;
   window.swRegistration = reg;
 
