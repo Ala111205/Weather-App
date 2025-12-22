@@ -9,6 +9,7 @@ import { renderTempChart } from './charts.js';
 let isCelsius = true;
 let recent = JSON.parse(localStorage.getItem('recentCities')||'[]');
 let compareCities = JSON.parse(localStorage.getItem('compareCities')) || [];
+let lastCityForNotification = null;
 
 const cityInput = el('cityInput');
 const searchBtn = el('searchBtn');
@@ -46,8 +47,8 @@ async function performSearch(term) {
     localStorage.setItem('recentCities', JSON.stringify(recent));
     UI.updateRecentSearches(recent);
 
-    // Push notification for this city
-    API.pushCityWeather(current);
+    // Push notification for the lastCity
+    lastCityForNotification = current;
 
     showToast('Updated');
   } catch (err) {
@@ -163,13 +164,16 @@ window.subscribeUser = async () => {
   try {
     if (!API.isPushSupported()) return;
 
+    if (!lastCityForNotification) {
+      showToast('Search a city first');
+      return;
+    }
+
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') throw new Error('Permission denied');
 
-    const reg = await API.getActiveSW(); // 🔥 FIX
-    const existing = await reg.pushManager.getSubscription();
-
-    let sub = existing;
+    const reg = await API.getActiveSW();
+    let sub = await reg.pushManager.getSubscription();
 
     if (!sub) {
       sub = await reg.pushManager.subscribe({
@@ -179,14 +183,19 @@ window.subscribeUser = async () => {
     }
 
     await API.subscribePush(sub);
+
+    // 🔔 SEND PUSH FOR *LAST SEARCHED CITY ONLY*
+    await API.pushCityWeather(lastCityForNotification);
+
     await updateUI(true);
-    alert('Notifications enabled');
+    alert(`Notification enabled for ${lastCityForNotification.name}`);
 
   } catch (err) {
     console.error('❌ Failed to enable:', err.message);
     alert('Failed to enable notifications');
   }
 };
+
 // ==================== UNSUBSCRIBE ====================
 window.unsubscribeUser = async () => {
   try {
