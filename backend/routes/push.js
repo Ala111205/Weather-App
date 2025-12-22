@@ -82,6 +82,8 @@ router.post('/subscription/update-city', async (req, res) => {
 
 // Manual push trigger from frontend search
 router.post('/search', async (req, res) => {
+  console.log('BODY:', req.body);
+  
   const { endpoint } = req.body;
   if (!endpoint) return res.status(400).json({ message: 'endpoint required' });
 
@@ -106,7 +108,6 @@ router.post('/search', async (req, res) => {
       })
     );
 
-    console.log('BODY:', req.body);
     res.json({ success: true });
   } catch (err) {
     console.error('[MANUAL PUSH ERROR]', err);
