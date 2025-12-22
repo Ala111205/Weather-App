@@ -50,8 +50,6 @@ app.use((req, res, next) => {
 app.use(helmet());
 app.use(bodyParser.json());
 
-import mongoose from 'mongoose';
-
 async function connectDB() {
   try {
     await mongoose.connect(process.env.MONGO_URI, {
