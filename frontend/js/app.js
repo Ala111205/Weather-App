@@ -48,7 +48,11 @@ async function performSearch(term) {
     UI.updateRecentSearches(recent);
 
     // Push notification for the lastCity
-    lastCityForNotification = current;
+    lastCityForNotification = {
+      name: current.name,
+      lat: current.coord.lat,
+      lon: current.coord.lon
+    };
 
     showToast('Updated');
   } catch (err) {
@@ -59,10 +63,23 @@ async function performSearch(term) {
 
 // ===== BUTTON EVENT LISTENERS =====
 
-searchBtn.addEventListener('click', ()=> {
+searchBtn.addEventListener('click', async () => {
   const q = cityInput.value.trim();
   if (!q) return showToast('Enter a city or lat,lon');
-  performSearch(q);
+
+  await performSearch(q);
+
+  if (!lastCityForNotification) return;
+
+  const reg = await API.getActiveSW();
+  const sub = await reg.pushManager.getSubscription();
+
+  if (sub) {
+    await API.updateSubscriptionCity({
+      endpoint: sub.endpoint,
+      city: lastCityForNotification
+    });
+  }
 });
 
 compareBtn.addEventListener('click', () => {
@@ -96,15 +113,6 @@ themeToggle.addEventListener('click', ()=> {
   const app = document.getElementById('app');
   app.classList.toggle('dark');
   themeToggle.textContent = app.classList.contains('dark') ? 'Light' : 'Dark';
-});
-
-// ===== SERVICE WORKER MESSAGE HANDLER =====
-self.addEventListener('message', event => {
-  if (event.data && event.data.type === 'UNSUBSCRIBE') {
-    self.registration.getNotifications().then(notifications => {
-      notifications.forEach(n => n.close());
-    });
-  }
 });
 
 // Compare Cities Feature
@@ -164,11 +172,6 @@ window.subscribeUser = async () => {
   try {
     if (!API.isPushSupported()) return;
 
-    if (!lastCityForNotification) {
-      showToast('Search a city first');
-      return;
-    }
-
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') throw new Error('Permission denied');
 
@@ -184,11 +187,16 @@ window.subscribeUser = async () => {
 
     await API.subscribePush(sub);
 
-    // 🔔 SEND PUSH FOR *LAST SEARCHED CITY ONLY*
-    await API.pushCityWeather(lastCityForNotification);
+    // If user already searched a city → sync it now
+    if (lastCityForNotification) {
+      await API.updateSubscriptionCity({
+        endpoint: sub.endpoint,
+        city: lastCityForNotification
+      });
+    }
 
     await updateUI(true);
-    alert(`Notification enabled for ${lastCityForNotification.name}`);
+    alert('Notifications enabled');
 
   } catch (err) {
     console.error('❌ Failed to enable:', err.message);
