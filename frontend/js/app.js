@@ -1,5 +1,3 @@
-console.log('🔥 app.js version 2025-09-UNSUBSCRIBE-FIX');
-
 import * as API from './api.js';
 import * as UI from './ui.js';
 import { el, parseLatLonInput, showToast, formatTemp } from './utils.js';
@@ -37,7 +35,7 @@ async function performSearch(term) {
     const lon = current.coord.lon;
     showLocation(lat, lon, current.name);
 
-    // Render forecast (first 8 points)
+    // Render forecast 
     const forecast = await API.getForecast(coords ? coords.lat : term, coords ? coords.lon : null, isCelsius ? 'metric' : 'imperial');
     UI.renderForecastList(forecast.list.slice(0, 8), isCelsius);
 
@@ -64,7 +62,7 @@ async function performSearch(term) {
 
     showToast('Updated');
 
-    return current; // return current for further use (e.g., subscription update)
+    return current; // return current for further use
   } catch (err) {
     console.error(err);
     showToast(err.message || 'Failed to load');
@@ -73,7 +71,6 @@ async function performSearch(term) {
 
 // ===== BUTTON EVENT LISTENERS =====
 
-// ==================== SEARCH BUTTON ====================
 searchBtn.addEventListener('click', async () => {
   const q = cityInput.value.trim();
   if (!q) return showToast('Enter a city name or lat,lon');
@@ -95,7 +92,7 @@ searchBtn.addEventListener('click', async () => {
       desc: current.weather?.[0]?.description
     };
 
-    // 🔒 HARD GUARD — no bad data reaches backend
+    // HARD GUARD — no bad data reaches backend
     if (
       typeof lastCityForNotification.lat !== 'number' ||
       typeof lastCityForNotification.lon !== 'number' ||
@@ -106,7 +103,7 @@ searchBtn.addEventListener('click', async () => {
       return;
     }
 
-    // 1️⃣ Save latest city + weather
+    // Save latest city + weather
     await API.updateSubscriptionCity({
       endpoint: sub.endpoint,
       city: lastCityForNotification.name,
@@ -116,7 +113,7 @@ searchBtn.addEventListener('click', async () => {
       desc: lastCityForNotification.desc
     });
 
-    // 2️⃣ Trigger manual push (backend reads from DB)
+    // Trigger manual push (backend reads from DB)
     await API.pushCityWeather();
 
   } catch (err) {

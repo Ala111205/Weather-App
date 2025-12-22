@@ -12,7 +12,7 @@ self.addEventListener('install', event => {
 // Activate: claim clients and clear old notifications
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
-    // 🔥 DELETE OLD CACHES
+    // DELETE OLD CACHES
     const keys = await caches.keys();
     await Promise.all(
       keys
@@ -36,7 +36,7 @@ self.addEventListener('fetch', event => {
 
   const url = new URL(req.url);
 
-  // 🔥 JS & HTML must be NETWORK FIRST
+  // JS & HTML must be NETWORK FIRST
   if (
     req.destination === 'script' ||
     req.destination === 'document'
@@ -98,11 +98,11 @@ self.addEventListener('push', event => {
       icon: data.icon || '/assets/icons/icon-192.png',
       badge: data.badge || '/assets/icons/icon-192.png',
 
-      // 🔥 unique tag → no overwriting, no duplicates logic bugs
+      // unique tag
       tag: `weather-${Date.now()}`,
       renotify: false,
 
-      // optional metadata for click handling
+      // Metadata for click handling
       data: {
         city: data.city,
         ts: Date.now()

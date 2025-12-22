@@ -66,7 +66,7 @@ export async function getActiveSW() {
     reg = await navigator.serviceWorker.register('/sw.js');
   }
 
-  // 🔥 CRITICAL: wait until this page is controlled
+  // Wait until this page is controlled
   if (!navigator.serviceWorker.controller) {
     await new Promise(resolve => {
       navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true });
