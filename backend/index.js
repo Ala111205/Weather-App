@@ -50,9 +50,45 @@ app.use((req, res, next) => {
 app.use(helmet());
 app.use(bodyParser.json());
 
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('MongoDB connected...'))
-  .catch(err => console.error('MongoDB connection error:', err));
+import mongoose from 'mongoose';
+
+async function connectDB() {
+  try {
+    await mongoose.connect(process.env.MONGO_URI, {
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+
+      maxPoolSize: 10,
+      minPoolSize: 1,
+
+      retryWrites: true,
+      autoIndex: false,        // IMPORTANT
+      heartbeatFrequencyMS: 10000
+    });
+
+    console.log('✅ MongoDB connected');
+
+  } catch (err) {
+    console.error('❌ MongoDB connection failed:', err.message);
+    process.exit(1);
+  }
+}
+
+/* Connection lifecycle logging */
+mongoose.connection.on('disconnected', () => {
+  console.warn('⚠️ MongoDB disconnected');
+});
+
+mongoose.connection.on('reconnected', () => {
+  console.log('🔄 MongoDB reconnected');
+});
+
+mongoose.connection.on('error', err => {
+  console.error('❌ MongoDB runtime error:', err.message);
+});
+
+connectDB();
 
 // Trust proxy (required for Render)
 app.set('trust proxy', 1);
@@ -111,4 +147,3 @@ app.get('/', (req, res) => {
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Server listening on ${PORT}`));
-
