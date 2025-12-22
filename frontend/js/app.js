@@ -159,30 +159,32 @@ async function updateUI(subscribed) {
 // ==================== SUBSCRIBE ====================
 window.subscribeUser = async () => {
   try {
-    if (!API.isPushSupported()) throw new Error('Push not supported');
+    if (!API.isPushSupported()) return;
 
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') throw new Error('Permission denied');
 
-    const reg = await API.getActiveSW(); // ✅ NOT initServiceWorker
+    const reg = await API.getActiveSW(); // 🔥 FIX
     const existing = await reg.pushManager.getSubscription();
 
-    const sub = existing || await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: API.urlBase64ToUint8Array(API.VAPID_KEY)
-    });
+    let sub = existing;
+
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: API.urlBase64ToUint8Array(API.VAPID_KEY)
+      });
+    }
 
     await API.subscribePush(sub);
     await updateUI(true);
-
-    console.log('✅ Push enabled');
+    alert('Notifications enabled');
 
   } catch (err) {
-    console.error('❌ Failed to enable:', err);
+    console.error('❌ Failed to enable:', err.message);
     alert('Failed to enable notifications');
   }
 };
-
 // ==================== UNSUBSCRIBE ====================
 window.unsubscribeUser = async () => {
   try {
