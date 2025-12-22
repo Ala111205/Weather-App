@@ -35,11 +35,28 @@ self.addEventListener('fetch', event => {
   if (req.method !== 'GET') return;
 
   const url = new URL(req.url);
+
+  // 🔥 JS & HTML must be NETWORK FIRST
+  if (
+    req.destination === 'script' ||
+    req.destination === 'document'
+  ) {
+    event.respondWith(
+      fetch(req).catch(() => caches.match(req))
+    );
+    return;
+  }
+
+  // APIs: network-first
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(networkFirst(req));
-  } else {
-    event.respondWith(caches.match(req).then(cached => cached || fetch(req)));
+    return;
   }
+
+  // Everything else: cache-first
+  event.respondWith(
+    caches.match(req).then(cached => cached || fetch(req))
+  );
 });
 
 async function networkFirst(req) {
