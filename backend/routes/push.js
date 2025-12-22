@@ -66,6 +66,21 @@ router.post('/check-subscription', async (req, res) => {
   }
 });
 
+router.post('/subscription/update-city', async (req, res) => {
+  const { endpoint, city } = req.body;
+
+  if (!endpoint || !city) {
+    return res.status(400).json({ message: 'Missing data' });
+  }
+
+  await Subscription.updateOne(
+    { endpoint },
+    { $set: { city } }
+  );
+
+  res.json({ message: 'City updated' });
+});
+
 // Shortcut route for manual trigger from frontend search
 router.post('/search', async (req, res) => {
   const { city, endpoint } = req.body;
