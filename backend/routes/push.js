@@ -61,8 +61,18 @@ router.post('/check-subscription', async (req, res) => {
 // Update last city for a subscription
 router.post('/subscription/update-city', async (req, res) => {
   const { endpoint, city, lat, lon, temp, desc } = req.body;
-  if (!endpoint || !city) {
-    return res.status(400).json({ message: 'Missing data' });
+
+  if (
+    !endpoint ||
+    !city ||
+    typeof lat !== 'number' ||
+    typeof lon !== 'number' ||
+    typeof temp !== 'number' ||
+    typeof desc !== 'string'
+  ) {
+    return res.status(400).json({
+      message: 'Invalid city payload'
+    });
   }
 
   await LastCity.updateOne(
@@ -77,7 +87,7 @@ router.post('/subscription/update-city', async (req, res) => {
     { upsert: true }
   );
 
-  res.json({ message: 'City updated' });
+  res.json({ success: true });
 });
 
 // Manual push trigger from frontend search
