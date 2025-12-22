@@ -230,6 +230,7 @@ window.subscribeUser = async () => {
       });
     }
 
+    updateUI(true);
     alert('Notifications enabled');
   } catch (err) {
     console.error('❌ Failed to enable:', err.message);
@@ -249,6 +250,7 @@ window.unsubscribeUser = async () => {
 
     reg.active?.postMessage({ type: 'UNSUBSCRIBE' });
 
+    updateUI(false);
     alert('Notifications disabled');
   } catch (err) {
     console.error('❌ Unsubscribe failed:', err.message);

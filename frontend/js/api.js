@@ -92,7 +92,7 @@ export async function pushCityWeather(cityData) {
     await fetch(`${BASE_URL}/api/push/search`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ city: cityData.name, endpoint: sub.endpoint })
+      body: JSON.stringify({ endpoint: sub.endpoint })
     });
   } catch (err) {
     console.error('Push failed:', err);

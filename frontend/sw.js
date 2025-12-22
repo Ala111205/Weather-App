@@ -76,37 +76,29 @@ async function networkFirst(req) {
 
 // Push notification handling (unique tag every time)
 self.addEventListener('push', event => {
-  event.waitUntil((async () => {
-    let data;
+  if (!event.data) return;
 
-    // Try fetching last city from backend
-    try {
-      const endpoint = event?.subscription?.endpoint;
-      if (!endpoint) return;
+  let payload;
+  try {
+    payload = event.data.json();
+  } catch (err) {
+    console.error('⚠️ Invalid push payload', err);
+    return;
+  }
 
-      const res = await fetch(`/api/push/last-city?endpoint=${encodeURIComponent(endpoint)}`);
-      data = await res.json();
-    } catch (err) {
-      console.error('⚠️ Failed to fetch last city for push:', err);
-      return;
-    }
+  const title = payload.title || 'Weather Update';
+  const body  = payload.body  || 'Tap to open app';
 
-    if (!data || !data.name) return;
-
-    // Build unique notification tag
-    const id = `weather-${Date.now()}`;
-    const title = `Weather: ${data.name}`;
-    const body = `Temp: ${data.lastData?.temp ?? '-'}°C, ${data.lastData?.desc ?? ''}`;
-
-    await self.registration.showNotification(title, {
+  event.waitUntil(
+    self.registration.showNotification(title, {
       body,
-      icon: '/assets/icons/icon-192.png',
+      icon: payload.icon || '/assets/icons/icon-192.png',
       badge: '/assets/icons/icon-192.png',
-      tag: id,
+      tag: `weather-${Date.now()}`, // unique → multiple notifications allowed
       renotify: false,
-      data: { id, ts: Date.now() }
-    });
-  })());
+      data: payload.data || {}
+    })
+  );
 });
 
 // Notification click opens or focuses the app
