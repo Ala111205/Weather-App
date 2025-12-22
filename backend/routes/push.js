@@ -2,7 +2,6 @@ const express = require('express');
 const webpush = require('web-push');
 const Subscription = require('../model/subscription');
 const LastCity = require('../model/lastCity');
-const sendLastCityWeatherPush = require('../utils/SendLastCityWeatherPush');
 const router = express.Router();
 
 // Configure VAPID
@@ -121,19 +120,6 @@ router.post('/search', async (req, res) => {
   );
 
   res.json({ success: true });
-});
-
-router.get('/auto', async (req, res) => {
-  try {
-    console.log('⏰ Uptimerobot auto-trigger hit');
-
-    await sendLastCityWeatherPush(null, false); // automatic trigger
-
-    res.json({ ok: true });
-  } catch (err) {
-    console.error('❌ Auto push failed', err);
-    res.status(500).json({ ok: false });
-  }
 });
 
 module.exports = router;

@@ -8,7 +8,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const weatherRoutes = require('./routes/weather');
 const pushRoutes = require('./routes/push');
-const sendManualWeatherPush = require('./utils/SendLastCityWeatherPush');
+const sendLastCityWeatherPush = require('./utils/SendLastCityWeatherPush');
 const LastCity = require('./model/lastCity');
 
 const app = express();
@@ -87,27 +87,21 @@ webpush.setVapidDetails(
 app.get('/trigger-weather-push', async (req, res) => {
   try {
     console.log(
-      '🕒 Automated weather push triggered at',
+      '🕒 UptimeRobot auto trigger at',
       new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
     );
 
-    // Get all cities that users searched before
-    const cities = await LastCity.distinct('name');
-
-    let totalSent = 0;
-    for (const city of cities) {
-      totalSent += await sendManualWeatherPush(city, null, false);
-    }
+    // 🔥 ONE CALL — function handles everything
+    await sendLastCityWeatherPush(null, false);
 
     res.status(200).json({
       success: true,
-      cities,
-      sent: totalSent,
-      mode: 'automatic'
+      mode: 'automatic',
+      message: 'Weather push attempted'
     });
   } catch (err) {
-    console.error('❌ Error during automatic weather push:', err.message);
-    res.status(500).json({ success: false, error: err.message });
+    console.error('❌ Auto push error:', err.message);
+    res.status(500).json({ success: false });
   }
 });
 
