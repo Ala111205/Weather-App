@@ -76,21 +76,31 @@ router.post('/subscription/update-city', async (req, res) => {
 
 // Manual push trigger from frontend search
 router.post('/search', async (req, res) => {
-  const { city, endpoint } = req.body;
-  if (!city || !endpoint) return res.status(400).json({ message: 'city & endpoint required' });
+  const { endpoint } = req.body;
+  if (!endpoint) return res.status(400).json({ message: 'endpoint required' });
 
   try {
+    const sub = await Subscription.findOne({ endpoint });
+    if (!sub) return res.status(404).json({ message: 'Subscription not found' });
+
     const last = await LastCity.findOne({ endpoint });
-    await webpush.sendNotification({ endpoint }, JSON.stringify({
-      data: {
+    if (!last) return res.status(404).json({ message: 'No city data' });
+
+    await webpush.sendNotification(
+      {
+        endpoint: sub.endpoint,
+        keys: sub.keys
+      },
+      JSON.stringify({
         title: `Weather: ${last.name}`,
-        body: `Temp: ${last.lastData.temp ?? '-'}°C, ${last.lastData.desc ?? ''}`,
+        body: `Temp: ${last.lastData.temp ?? '-'}°C ${last.lastData.desc ?? ''}`,
         icon: '/assets/icons/icon-192.png'
-      }
-    }));
+      })
+    );
+
     res.json({ success: true });
   } catch (err) {
-    console.error('[MANUAL PUSH ERROR]', err.message);
+    console.error('[MANUAL PUSH ERROR]', err);
     res.status(500).json({ success: false });
   }
 });
