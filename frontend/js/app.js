@@ -78,39 +78,29 @@ searchBtn.addEventListener('click', async () => {
   const q = cityInput.value.trim();
   if (!q) return showToast('Enter a city name or lat,lon');
 
-  // Perform search and get the current city object
   const current = await performSearch(q);
   if (!current) return;
 
-  // Update last searched city for notifications if subscribed
   try {
     const reg = await API.getActiveSW();
     const sub = await reg.pushManager.getSubscription();
-    if (sub) {
-      // Prepare full lastCityForNotification data
-      lastCityForNotification = {
-        name: current.name,
-        lat: current.coord.lat,
-        lon: current.coord.lon,
-        temp: current.main.temp,
-        desc: current.weather[0].description
-      };
+    if (!sub) return;
 
-      // Update backend subscription with the latest city
-      await API.updateSubscriptionCity({
-        endpoint: sub.endpoint,
-        city: lastCityForNotification.name,
-        lat: lastCityForNotification.lat,
-        lon: lastCityForNotification.lon,
-        temp: lastCityForNotification.temp,
-        desc: lastCityForNotification.desc
-      });
+    // 1️⃣ Save latest city + weather in backend
+    await API.updateSubscriptionCity({
+      endpoint: sub.endpoint,
+      city: current.name,
+      lat: current.coord.lat,
+      lon: current.coord.lon,
+      temp: current.main.temp,
+      desc: current.weather[0].description
+    });
 
-      // Trigger a manual push immediately
-      await API.pushCityWeather(lastCityForNotification);
-    }
+    // 2️⃣ Trigger manual push (backend reads from DB)
+    await API.pushCityWeather();
+
   } catch (err) {
-    console.error('❌ Failed to update last city for notifications:', err.message);
+    console.error('❌ Notification update failed:', err);
   }
 });
 

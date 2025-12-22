@@ -106,6 +106,7 @@ router.post('/search', async (req, res) => {
       })
     );
 
+    console.log('BODY:', req.body);
     res.json({ success: true });
   } catch (err) {
     console.error('[MANUAL PUSH ERROR]', err);

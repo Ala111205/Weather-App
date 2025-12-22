@@ -83,19 +83,19 @@ export async function getActiveSW() {
 }
 
 // ======================== PUSH MANAGEMENT ========================
-export async function pushCityWeather(cityData) {
-  try {
-    const reg = await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.getSubscription();
-    if (!sub) return;
+export async function pushCityWeather() {
+  const reg = await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.getSubscription();
+  if (!sub) return;
 
-    await fetch(`${BASE_URL}/api/push/search`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ endpoint: sub.endpoint })
-    });
-  } catch (err) {
-    console.error('Push failed:', err);
+  const res = await fetch(`${BASE_URL}/api/push/search`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint: sub.endpoint })
+  });
+
+  if (!res.ok) {
+    throw new Error(`Manual push failed (${res.status})`);
   }
 }
 
