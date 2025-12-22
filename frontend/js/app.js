@@ -86,14 +86,34 @@ searchBtn.addEventListener('click', async () => {
     const sub = await reg.pushManager.getSubscription();
     if (!sub) return;
 
-    // 1️⃣ Save latest city + weather in backend
+    // Build lastCityForNotification safely
+    const lastCityForNotification = {
+      name: current.name,
+      lat: current.coord?.lat,
+      lon: current.coord?.lon,
+      temp: current.main?.temp,
+      desc: current.weather?.[0]?.description
+    };
+
+    // 🔒 HARD GUARD — no bad data reaches backend
+    if (
+      typeof lastCityForNotification.lat !== 'number' ||
+      typeof lastCityForNotification.lon !== 'number' ||
+      typeof lastCityForNotification.temp !== 'number' ||
+      typeof lastCityForNotification.desc !== 'string'
+    ) {
+      console.warn('⚠️ Incomplete weather data, skipping push sync', lastCityForNotification);
+      return;
+    }
+
+    // 1️⃣ Save latest city + weather
     await API.updateSubscriptionCity({
       endpoint: sub.endpoint,
-      city: current.name,
-      lat: current.coord.lat,
-      lon: current.coord.lon,
-      temp: current.main.temp,
-      desc: current.weather[0].description
+      city: lastCityForNotification.name,
+      lat: lastCityForNotification.lat,
+      lon: lastCityForNotification.lon,
+      temp: lastCityForNotification.temp,
+      desc: lastCityForNotification.desc
     });
 
     // 2️⃣ Trigger manual push (backend reads from DB)

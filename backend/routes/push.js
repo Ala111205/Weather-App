@@ -62,6 +62,8 @@ router.post('/check-subscription', async (req, res) => {
 router.post('/subscription/update-city', async (req, res) => {
   const { endpoint, city, lat, lon, temp, desc } = req.body;
 
+  console.log('UPDATE CITY BODY:', req.body);
+
   if (
     !endpoint ||
     !city ||
