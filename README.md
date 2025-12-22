@@ -48,9 +48,9 @@
 
             ⚠️ Users can manually turn notifications on or off directly from the notification icon.
 
-⚙️ **Automated Weather Push via Cron Job**
+⚙️ **Automated Weather Push via UptimeRobot**
 
-      To keep users updated 24/7, the backend integrates with cron-job.org to automatically trigger weather notifications hourly — even when the frontend is closed.
+      Automated weather notifications triggered via UptimeRobot by periodically hitting a backend endpoint, keeping the server active and delivering push updates even when the frontend is closed.
 
 💾 **Installable PWA**
 
