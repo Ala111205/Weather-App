@@ -8,7 +8,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const weatherRoutes = require('./routes/weather');
 const pushRoutes = require('./routes/push');
-const sendManualWeatherPush = require('./utils/sendManualWeatherPush');
+const sendManualWeatherPush = require('./utils/SendLastCityWeatherPush');
 const LastCity = require('./model/lastCity');
 
 const app = express();

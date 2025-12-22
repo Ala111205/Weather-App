@@ -2,7 +2,7 @@ const express = require('express');
 const webpush = require('web-push');
 const Subscription = require('../model/subscription');
 const LastCity = require('../model/lastCity');
-const sendLastCityWeatherPush = require('../utils/sendLastCityWeatherPush');
+const sendLastCityWeatherPush = require('../utils/SendLastCityWeatherPush');
 const router = express.Router();
 
 // Configure VAPID
