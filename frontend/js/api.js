@@ -113,23 +113,21 @@ export async function checkSubscription(endpoint) {
 }
 
 // Update last searched city for an existing subscription
-export async function updateSubscriptionCity({ endpoint, city }) {
-  if (!endpoint || !city) return;
-
-  const res = await fetch(`${BASE_URL}/api/push/subscription/update-city`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      endpoint,
-      city
-    })
-  });
+export async function updateSubscriptionCity(data) {
+  const res = await fetch(
+    `${BASE_URL}/api/push/subscription/update-city`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    }
+  );
 
   if (!res.ok) {
     throw new Error('Failed to update subscription city');
   }
-
-  return res.json();
 }
 
 export async function subscribePush(subscription) {
