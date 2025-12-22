@@ -2,8 +2,6 @@ const webpush = require('web-push');
 const Subscription = require('../model/subscription');
 const LastCity = require('../model/lastCity');
 
-const MIN_PUSH_INTERVAL = 2 * 60 * 1000; // 10 minutes
-
 const getBaseURL = () =>
   process.env.NODE_ENV === 'production'
     ? process.env.FRONTEND_PROD_URL
@@ -21,7 +19,7 @@ async function sendLastCityWeatherPush(targetEndpoint = null, manualTrigger = fa
 
   if (!subs.length) {
     console.log('⚠️ No subscriptions found');
-    return;
+    return 0;
   }
 
   const baseURL = getBaseURL();
@@ -30,7 +28,7 @@ async function sendLastCityWeatherPush(targetEndpoint = null, manualTrigger = fa
   for (const s of subs) {
     const last = await LastCity.findOne({ endpoint: s.endpoint });
 
-    // 🛑 Hard validation — no garbage notifications
+    // 🛑 Hard validation — send NOTHING if data is incomplete
     if (
       !last ||
       !last.name ||
@@ -41,16 +39,8 @@ async function sendLastCityWeatherPush(targetEndpoint = null, manualTrigger = fa
       continue;
     }
 
-    // ⏱️ Rate-limit ONLY automatic pushes
-    if (
-      !manualTrigger &&
-      last.lastPushAt &&
-      Date.now() - new Date(last.lastPushAt).getTime() < MIN_PUSH_INTERVAL
-    ) {
-      continue;
-    }
-
-    const notificationId = `weather-${last.name.replace(/\s+/g, '_')}-${s.endpoint.slice(-8)}-${Date.now()}`;
+    const notificationId =
+      `weather-${last.name.replace(/\s+/g, '_')}-${Date.now()}`;
 
     const payload = JSON.stringify({
       data: {
@@ -65,25 +55,19 @@ async function sendLastCityWeatherPush(targetEndpoint = null, manualTrigger = fa
     try {
       await webpush.sendNotification(s, payload);
       sent++;
-
-      // ✅ Track push time separately (important)
-      await LastCity.updateOne(
-        { endpoint: s.endpoint },
-        { $set: { lastPushAt: new Date() } }
-      );
-
     } catch (err) {
       if (err?.statusCode === 404 || err?.statusCode === 410) {
         await Subscription.deleteOne({ endpoint: s.endpoint });
         await LastCity.deleteOne({ endpoint: s.endpoint });
         console.log(`🗑️ Removed stale subscription`);
       } else {
-        console.error(`[PUSH ERROR]`, err.message);
+        console.error('[PUSH ERROR]', err.message);
       }
     }
   }
 
-  console.log(`📩 Push sent to ${sent} subscriber(s)${manualTrigger ? ' (manual)' : ''}`);
+  console.log(`📩 Push sent to ${sent} subscriber(s)${manualTrigger ? ' (manual)' : ' (auto)'}`);
+  return sent;
 }
 
 module.exports = sendLastCityWeatherPush;
