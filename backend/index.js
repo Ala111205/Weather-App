@@ -11,6 +11,8 @@ const pushRoutes = require('./routes/push');
 const sendLastCityWeatherPush = require('./utils/SendLastCityWeatherPush');
 const LastCity = require('./model/lastCity');
 
+let mongoReady = false;
+
 const app = express();
 
 const allowedOrigins = [
@@ -31,22 +33,6 @@ app.use(cors({
   credentials: true
 }));
 
-// Handle preflight requests manually
-app.use((req, res, next) => {
-  if (req.method === 'OPTIONS') {
-    const origin = req.headers.origin;
-    if (allowedOrigins.includes(origin)) {
-      res.header('Access-Control-Allow-Origin', origin);
-      res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-      res.header('Access-Control-Allow-Headers', 'Content-Type');
-      return res.sendStatus(204);
-    } else {
-      return res.sendStatus(403);
-    }
-  }
-  next();
-});
-
 app.use(helmet());
 app.use(bodyParser.json());
 
@@ -61,7 +47,7 @@ async function connectDB() {
       minPoolSize: 1,
 
       retryWrites: true,
-      autoIndex: false,        // IMPORTANT
+      autoIndex: false,        
       heartbeatFrequencyMS: 10000
     });
 
@@ -74,11 +60,18 @@ async function connectDB() {
 }
 
 /* Connection lifecycle logging */
+mongoose.connection.on('connected', () => {
+  mongoReady = true;
+  console.log('🟢 MongoDB ready');
+});
+
 mongoose.connection.on('disconnected', () => {
+  mongoReady = false;
   console.warn('⚠️ MongoDB disconnected');
 });
 
 mongoose.connection.on('reconnected', () => {
+  mongoReady = true;
   console.log('🔄 MongoDB reconnected');
 });
 
@@ -92,7 +85,7 @@ connectDB();
 app.set('trust proxy', 1);
 const limiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 300,
+  max: 120,
   standardHeaders: true,
   legacyHeaders: false
 });
@@ -113,30 +106,34 @@ app.use(express.static('../frontend'));
 
 // VAPID setup
 webpush.setVapidDetails(
-  'mailto:sadham070403.com',
+  'mailto:sadham070403@gmail.com',
   process.env.VAPID_PUBLIC_KEY,
   process.env.VAPID_PRIVATE_KEY
 );
 
-app.get('/trigger-weather-push', async (req, res) => {
-  try {
-    console.log(
-      '🕒 UptimeRobot auto trigger at',
-      new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
-    );
+app.get('/trigger-weather-push', (req, res) => {
+  console.log(
+    '🕒 UptimeRobot auto trigger at',
+    new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+  );
 
-    // 🔥 ONE CALL — function handles everything
-    await sendLastCityWeatherPush(null, false);
+  res.status(200).json({
+    success: true,
+    mode: 'automatic',
+    message: 'Weather push scheduled'
+  });
 
-    res.status(200).json({
-      success: true,
-      mode: 'automatic',
-      message: 'Weather push attempted'
-    });
-  } catch (err) {
-    console.error('❌ Auto push error:', err.message);
-    res.status(500).json({ success: false });
-  }
+  setImmediate(async () => {
+    try {
+      if (mongoose.connection.readyState !== 1 || !mongoReady) {
+        console.warn('Mongo not ready, skipping auto push');
+        return;
+      }
+      await sendLastCityWeatherPush(null, false);
+    } catch (err) {
+      console.error('❌ Auto push background error:', err.message);
+    }
+  });
 });
 
 app.get('/', (req, res) => {
