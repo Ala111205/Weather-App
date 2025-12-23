@@ -35,16 +35,26 @@ router.post('/subscribe', async (req, res) => {
 router.post('/unsubscribe', async (req, res) => {
   try {
     const { endpoint } = req.body;
-    if (!endpoint) return res.status(400).json({ message: 'No endpoint' });
+    if (!endpoint) {
+      return res.status(400).json({ message: 'endpoint required' });
+    }
+
+    const sub = await Subscription.findOne({ endpoint });
+
+    if (!sub) {
+      // Already gone → treat as success
+      return res.json({ success: true, message: 'Already unsubscribed' });
+    }
 
     await Subscription.deleteOne({ endpoint });
     await LastCity.deleteOne({ endpoint });
 
-    console.log(`🗑️ Subscription deleted: ${endpoint}`);
-    res.json({ message: 'Unsubscribed successfully' });
+    console.log('🗑️ Unsubscribed:', endpoint);
+    res.json({ success: true });
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Unsubscribe failed' });
+    console.error('❌ Unsubscribe error:', err.message);
+    res.status(500).json({ success: false });
   }
 });
 
