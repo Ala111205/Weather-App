@@ -17,8 +17,11 @@ router.post('/subscribe', async (req, res) => {
     const { endpoint, keys } = req.body;
     if (!endpoint || !keys) return res.status(400).json({ message: 'Invalid subscription' });
 
-    await Subscription.deleteMany({ endpoint });
-    await Subscription.create({ endpoint, keys });
+    await Subscription.updateOne(
+      { endpoint },
+      { $set: { keys } },
+      { upsert: true }
+    );
 
     console.log('✅ New subscription added');
     res.status(201).json({ message: 'Subscribed successfully' });
@@ -93,33 +96,62 @@ router.post('/subscription/update-city', async (req, res) => {
 
 // Manual push trigger from frontend search
 router.post('/search', async (req, res) => {
-  console.log('🔴 HIT /api/push/search');
-  console.log('BODY:', req.body);
-  const { endpoint } = req.body;
-  if (!endpoint)
-    return res.status(400).json({ message: 'endpoint required' });
+  try {
+    console.log('🔴 HIT /api/push/search');
+    console.log('BODY:', req.body);
 
-  const sub = await Subscription.findOne({ endpoint });
-  if (!sub)
-    return res.status(404).json({ message: 'Subscription not found' });
+    const { endpoint } = req.body;
+    if (!endpoint) {
+      return res.status(400).json({ message: 'endpoint required' });
+    }
 
-  const last = await LastCity.findOne({ endpoint });
-  if (!last)
-    return res.status(404).json({ message: 'No city data' });
+    const sub = await Subscription.findOne({ endpoint });
+    if (!sub) {
+      return res.status(404).json({ message: 'Subscription not found' });
+    }
 
-  await webpush.sendNotification(
-    {
-      endpoint: sub.endpoint,
-      keys: sub.keys
-    },
-    JSON.stringify({
-      title: `Weather: ${last.name}`,
-      body: `Temp: ${last.lastData.temp}°C ${last.lastData.desc}`,
-      icon: '/assets/icons/icon-192.png'
-    })
-  );
+    const last = await LastCity.findOne({ endpoint });
+    if (
+      !last ||
+      !last.name ||
+      !last.lastData ||
+      typeof last.lastData.temp !== 'number' ||
+      typeof last.lastData.desc !== 'string'
+    ) {
+      return res.status(404).json({ message: 'No valid city data' });
+    }
 
-  res.json({ success: true });
+    const payload = JSON.stringify({
+      data: {
+        id: `manual-${Date.now()}`,
+        title: `🌤 Weather in ${last.name}`,
+        body: `${last.lastData.desc}, ${last.lastData.temp}°C`,
+        icon: `${process.env.FRONTEND_PROD_URL}/assets/icons/icon-192.png`,
+        badge: `${process.env.FRONTEND_PROD_URL}/assets/icons/icon-192.png`
+      }
+    });
+
+    await webpush.sendNotification(
+      {
+        endpoint: sub.endpoint,
+        keys: sub.keys
+      },
+      payload
+    );
+
+    res.json({ success: true });
+
+  } catch (err) {
+    console.error('❌ Manual push error:', err.message);
+
+    if (err?.statusCode === 404 || err?.statusCode === 410) {
+      await Subscription.deleteOne({ endpoint: req.body.endpoint });
+      await LastCity.deleteOne({ endpoint: req.body.endpoint });
+      console.log('🗑️ Removed stale subscription');
+    }
+
+    res.status(500).json({ success: false });
+  }
 });
 
 module.exports = router;
