@@ -206,13 +206,17 @@ async function updateUI(subscribed) {
   if (unsubscribeBtn) unsubscribeBtn.style.display = subscribed ? 'inline-block' : 'none';
 }
 
+function userOptedOut() {
+  return localStorage.getItem('push_opted_out') === 'true';
+}
+
 // ==================== SUBSCRIBE ====================
 window.subscribeUser = async () => {
   try {
     if (!API.isPushSupported()) return;
 
     const permission = await Notification.requestPermission();
-    if (permission !== 'granted') throw new Error('Permission denied');
+    if (permission !== 'granted') return;
 
     const reg = await API.getActiveSW();
     let sub = await reg.pushManager.getSubscription();
@@ -225,23 +229,19 @@ window.subscribeUser = async () => {
       await API.subscribePush(sub);
     }
 
-    // Sync last searched city if available
+    localStorage.removeItem('push_opted_out');
+
     if (lastCityForNotification) {
       await API.updateSubscriptionCity({
         endpoint: sub.endpoint,
-        city: lastCityForNotification.name,
-        lat: lastCityForNotification.lat,
-        lon: lastCityForNotification.lon,
-        temp: lastCityForNotification.temp,
-        desc: lastCityForNotification.desc
+        ...lastCityForNotification
       });
     }
 
     updateUI(true);
     alert('Notifications enabled');
   } catch (err) {
-    console.error('❌ Failed to enable:', err.message);
-    alert('Failed to enable notifications');
+    console.error(err);
   }
 };
 
@@ -252,15 +252,16 @@ window.unsubscribeUser = async () => {
     const sub = await reg.pushManager.getSubscription();
     if (!sub) return;
 
+    // Mark user intent FIRST
+    localStorage.setItem('push_opted_out', 'true');
+
     await API.unsubscribePush(sub);
     await sub.unsubscribe();
-
-    reg.active?.postMessage({ type: 'UNSUBSCRIBE' });
 
     updateUI(false);
     alert('Notifications disabled');
   } catch (err) {
-    console.error('❌ Unsubscribe failed:', err.message);
+    console.error(err);
   }
 };
 
@@ -268,19 +269,29 @@ window.unsubscribeUser = async () => {
 (async () => {
   if (!API.isPushSupported()) return;
 
-  const reg = window.swRegistration || await API.getActiveSW();
-  if (!reg) return;
-  window.swRegistration = reg;
-
+  const reg = await API.getActiveSW();
   const sub = await reg.pushManager.getSubscription();
-  if (!sub) return updateUI(false);
+
+  // User explicitly opted out → NEVER auto re-subscribe
+  if (userOptedOut()) {
+    updateUI(false);
+    return;
+  }
+
+  // No subscription → silent auto-fix allowed
+  if (!sub) {
+    updateUI(false);
+    return;
+  }
 
   const check = await API.checkSubscription(sub.endpoint);
-  if (check.exists) updateUI(true);
-  else {
-    await sub.unsubscribe();
-    updateUI(false);
+
+  // Backend lost it → auto repair
+  if (!check.exists) {
+    await API.subscribePush(sub);
   }
+
+  updateUI(true);
 })();
 
 // ==================== BUTTON EVENTS ====================

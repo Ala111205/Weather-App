@@ -121,10 +121,3 @@ self.addEventListener('notificationclick', event => {
     })
   );
 });
-
-// Message listener: clear notifications on unsubscribe
-self.addEventListener('message', event => {
-  if (event.data?.type === 'UNSUBSCRIBE') {
-    self.registration.getNotifications().then(notifs => notifs.forEach(n => n.close()));
-  }
-});
